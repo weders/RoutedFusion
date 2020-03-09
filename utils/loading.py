@@ -32,11 +32,21 @@ def load_config_from_json(path):
 
 
 def load_experiment(path):
+    """
+    Method to load experiment from path
+    :param path: path to experiment folder
+    :return: easydict containing config
+    """
+    path = os.path.join(path, 'config.json')
     config = load_config_from_json(path)
     return config
 
 
 def load_config(path):
+    """
+    Wrapper method around different methods
+    loading config file based on file ending.
+    """
 
     if path[-4:] == 'yaml':
         return load_config_from_yaml(path)
