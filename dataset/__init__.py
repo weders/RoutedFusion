@@ -1,0 +1,1 @@
+from .shapenet import ShapeNet

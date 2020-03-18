@@ -15,6 +15,7 @@ class Extractor(nn.Module):
         super(Extractor, self).__init__()
 
         self.n_points = config.n_points
+        self.device = config.device
 
     def forward(self, depth, extrinsics, intrinsics,
                 volume, origin, resolution, weights=None):
@@ -34,14 +35,6 @@ class Extractor(nn.Module):
         intrinsics = intrinsics.double()
         extrinsics = extrinsics.double()
 
-        if torch.cuda.is_available():
-            intrinsics = intrinsics.cuda()
-            extrinsics = extrinsics.cuda()
-
-            volume = volume.cuda()
-            if weights is not None:
-                weights = weights.cuda()
-            origin = origin.cuda()
 
         # TODO: this is not valid if two different scenes are in a batch
         xs = volume.shape[0]
@@ -59,25 +52,22 @@ class Extractor(nn.Module):
 
         ray_pts, ray_dists = self.extract_values(coords, eye_w, origin, resolution, n_points=int((self.n_points - 1)/2))
 
-        values_current, values_gt, indices, weights, centers, fusion_weights, values_fused = trilinear_interpolation(ray_pts, volume, weights)
+        fusion_values, fusion_weights, indices, weights = trilinear_interpolation(ray_pts, volume, weights)
 
-        n1, n2, n3 = values_gt.shape
+        n1, n2, n3 = fusion_values.shape
 
         indices = indices.view(n1, n2, n3, 8, 3)
         weights = weights.view(n1, n2, n3, 8)
 
-
         # packing
-        values = dict(current=values_current,
-                      gt=values_gt,
+        values = dict(fusion_values=fusion_values,
+                      fusion_weigths=fusion_weights,
                       points=ray_pts,
                       depth=depth.view(b, h*w),
                       indices=indices,
                       weights=weights,
-                      centers=centers,
                       pcl=coords,
-                      fusion_weights=fusion_weights,
-                      values_fused=values_fused)
+                      fusion_weights=fusion_weights)
 
         del volume, extrinsics, intrinsics, origin, weights
 
@@ -91,10 +81,6 @@ class Extractor(nn.Module):
         # generate frame meshgrid
         xx, yy = torch.meshgrid([torch.arange(h, dtype=torch.double), torch.arange(w, dtype=torch.double)])
 
-        if torch.cuda.is_available():
-            xx = xx.cuda()
-            yy = yy.cuda()
-
         # flatten grid coordinates and bring them to batch size
         xx = xx.contiguous().view(1, h*w, 1).repeat((b, 1, 1))
         yy = yy.contiguous().view(1, h*w, 1).repeat((b, 1, 1))
@@ -107,9 +93,6 @@ class Extractor(nn.Module):
         intrinsics_inv = intrinsics.inverse()
 
         homogenuous = torch.ones((b, 1, n_points)).double()
-
-        if torch.cuda.is_available():
-            homogenuous = homogenuous.cuda()
 
         # transform points from pixel space to camera space to world space (p->c->w)
         points_p[:, :, 0] *= zz[:, :, 0]
@@ -305,7 +288,7 @@ def insert_values(values, indices, volume):
     volume[indices[:, 0], indices[:, 1], indices[:, 2]] = values
 
 
-def trilinear_interpolation(points, volume, volume_gt, fusion_weights_volume):
+def trilinear_interpolation(points, volume, fusion_weights_volume):
 
     b, h, n, dim = points.shape
 
@@ -314,7 +297,7 @@ def trilinear_interpolation(points, volume, volume_gt, fusion_weights_volume):
         centers = torch.floor(points[0, :, 4, :]).long()
         valid = get_index_mask(centers, volume.shape)
         valid_idx = torch.nonzero(valid)[:, 0]
-        values_valid = extract_values(centers, volume_gt, valid)
+        values_valid = extract_values(centers, valid)
 
         values = torch.zeros_like(centers[:, 0]).double()
         values[valid_idx] = values_valid
@@ -322,57 +305,42 @@ def trilinear_interpolation(points, volume, volume_gt, fusion_weights_volume):
 
         return values
 
-    center_values = analyze_center(points)
+    # center_values = analyze_center(points)
 
-    weights, indices = interpolation_weights(points, mode='center')
+    weights_interpolation, indices_interpolation = interpolation_weights(points, mode='center')
 
-    n1, n2, n3 = indices.shape
+    n1, n2, n3 = indices_interpolation.shape
+    indices_interpolation = indices_interpolation.contiguous().view(n1*n2, n3).long()
 
-    indices = indices.contiguous().view(n1*n2, n3).long()
-
-    valid = get_index_mask(indices, volume.shape)
-
+    valid = get_index_mask(indices_interpolation, volume.shape)
     valid_idx = torch.nonzero(valid)[:, 0]
 
-    vv = extract_values(indices, volume, valid)
-    vv_gt = extract_values(indices, volume_gt, valid)
-    f_weights = extract_values(indices, fusion_weights_volume, valid)
+    v = extract_values(indices_interpolation, volume, valid)
 
-    values = torch.zeros_like(valid).double()
-    values_gt = torch.zeros_like(valid).double()
-    f_weights_values = torch.zeros_like(valid).double()
+    # extract weights if necessary
+    if fusion_weights_volume is not None:
+        w = extract_values(indices_interpolation, fusion_weights_volume, valid)
+        weights = torch.zeros_like(valid).double()
+        weights[valid_idx] = w
+        weights = weights.view(weights_interpolation.shape)
+        fusion_weights = torch.sum(weights * weights_interpolation, dim=1)
+        fusion_weights = fusion_weights.view(b, h, n).float()
+    else:
+        fusion_weights = None
 
-    values[valid_idx] = vv
-    values_gt[valid_idx] = vv_gt
-    f_weights_values[valid_idx] = f_weights
-
-    values = values.view(weights.shape)
-    values_gt = values_gt.view(weights.shape)
-    f_weights_values = f_weights_values.view(weights.shape)
-
-    values = values * weights #* f_weights_values
-    values_fused = values * weights * f_weights_values
-    values_gt = values_gt*weights
-
+    # prepare value container and add values
+    values = torch.zeros_like(valid).float()
+    values[valid_idx] = v.float()
+    values = values.view(weights_interpolation.shape)
+    values = values * weights_interpolation #* f_weights_value
     values = torch.sum(values, dim=1)
-    values_gt = torch.sum(values_gt, dim=1)
-    values_fused = torch.sum(values_fused, dim=1)
-    fusion_weights = torch.sum(f_weights_values * weights, dim=1)
 
-    values = values.view(b, h, n)
-    values_gt = values_gt.view(b, h, n)
-    values_fused = values_fused.view(b, h, n)
-    fusion_weights = fusion_weights.view(b, h, n)
+    # reshape
+    fusion_values = values.view(b, h, n).float()
 
-    indices = indices.view(n1, n2, n3)
+    indices_interpolation = indices_interpolation.view(n1, n2, n3)
 
-    # center_points = values_gt[0, :, 4].detach().numpy()
-    # for point in center_points:
-    #     print(point)
-
-    del vv, vv_gt, f_weights, f_weights_values, valid, valid_idx
-
-    return values.float(), values_gt.float(), indices, weights, center_values, fusion_weights.float(), values_fused.float()
+    return fusion_values, fusion_weights, indices_interpolation, weights_interpolation,
 
 
 

@@ -1,0 +1,9 @@
+[submodule "deps/graphics"]
+	path = deps/graphics
+	url = git@github.com:weders/graphics.git
+[submodule "deps/tsdf"]
+	path = deps/tsdf
+	url = git@github.com:weders/tsdf.git
+[submodule "deps/distance-transform"]
+	path = deps/distance-transform
+	url = git@github.com:weders/distance-transform.git

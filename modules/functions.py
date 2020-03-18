@@ -30,9 +30,10 @@ def prepare_fusion_input(frame, values, weights, config, confidence=None):
 def prepare_volume_update(data, est, inputs, config, outlier=None, confidence=None):
 
     tail_points = config.MODEL.n_tail_points
-
     b, h, w = inputs.shape
     depth = inputs.view(b, h * w, 1)
+
+    print(est.shape)
 
     if config.LOSS.loss == 'outlier':
         valid = (outlier < 0.5) & (depth != 0.)
@@ -52,6 +53,8 @@ def prepare_volume_update(data, est, inputs, config, outlier=None, confidence=No
     update_weights = data['weights'].cpu()[:, valid, :tail_points, :]
     update_points = data['points'].cpu()[:, valid, :tail_points, :]
     update_values = est.cpu()[:, valid, :tail_points]
+
+    print(update_values.shape)
 
     update_values = torch.clamp(update_values, -0.1, 0.1)
 
@@ -117,65 +120,96 @@ def routing(batch, routing_model, device, config, routing_config):
         return frame, None
 
 
-def fusion(input, weights, model, values, config):
+def fusion(input, weights, model, config):
 
     b, c, h, w = input.shape
 
     tsdf_pred = model.forward(input)
     tsdf_pred = tsdf_pred.permute(0, 2, 3, 1)
 
-    output = dict()
+    tsdf_est = tsdf_pred[:, :, :, :config.MODEL.n_points].view(b, h * w, config.MODEL.n_points)
 
-    if config.MODEL.dynamic:
+    return tsdf_est
 
-        tsdf_est = tsdf_pred[:, :, :, :config.MODEL.n_points].view(b, h * w, config.MODEL.n_points)
-        tsdf_depth = tsdf_pred[:, :, :, -1]
 
-        output['tsdf_est'] = tsdf_est
-        output['tsdf_fused'] = tsdf_est
-        output['tsdf_depth'] = tsdf_depth
+def pipeline_clean(data,
+                   entry,
+                   routing_network,
+                   extractor,
+                   fusion_network,
+                   integrator,
+                   config):
 
+    # routing
+    if routing_network is not None:
+        frame, confidence = routing(data, routing_network, config)
     else:
+        frame, confidence = data[config.DATA.input], None
 
-        tsdf_est = tsdf_pred[:, :, :, :config.MODEL.n_points].view(b, h * w, config.MODEL.n_points)
+    # confidence filtering
+    if confidence is not None:
+        filtered_frame = torch.where(confidence < config.ROUTING.threshold, torch.zeros_like(frame), frame)
+    else:
+        filtered_frame = frame
 
-        # computing weighted updates for loss calculation
-        tsdf_old = values['current']
+    # filtering valid pixels
+    mask = data['original_mask']
+    frame = torch.where(mask == 0, torch.zeros_like(filtered_frame), filtered_frame)
 
-        weights = weights.view(b, h * w, config.MODEL.n_points)
-        weights = torch.where(weights < 0, torch.zeros_like(weights), weights)
+    # filter boundary pixels
+    frame[:, 0:3, :] = 0
+    frame[:, -1:-4, :] = 0
+    frame[:, :, 0:3] = 0
+    frame[:, :, -1:-4] = 0
 
-        tsdf_fused = (weights * tsdf_old + tsdf_est) / (weights + torch.ones_like(weights))
-        # tsdf_fused = (tsdf_old + tsdf_est) * 0.5
+    # import matplotlib.pyplot as plt
+    #
+    # plt.imshow(frame.detach().numpy()[0])
+    # plt.show()
 
-        output['tsdf_est'] = tsdf_est
-        output['tsdf_fused'] = tsdf_fused
+    # get shape of batch
+    b, h, w = frame.shape
 
-    if config.LOSS.loss == 'uncertainty' or config.LOSS.loss == 'outlier':
+    # get current tsdf values
+    scene_id = data['scene_id'][0]
 
-        tsdf_unc = tsdf_pred[:, :, :, -1]
-        tsdf_unc = tsdf_unc.view(b, h * w, 1)
+    # TODO: check what volume is and change it to interface
+    data_est = extractor.forward(frame, data['extrinsics'], data['intrinsics'],
+                                 entry['current'], entry['origin'], entry['resolution'], entry['weights'])
 
-        output['tsdf_unc'] = tsdf_unc
+    tsdf_input, tsdf_weights = prepare_fusion_input(frame,
+                                                    data_est['fusion_values'],
+                                                    data_est['fusion_weights'],
+                                                    config,
+                                                    confidence=confidence)
 
-    """ Preparing for loss computation """
+    tsdf_est = fusion(tsdf_input, tsdf_weights, fusion_network, config)
 
 
-    return output
+
+
+    update_values, update_indices, \
+    update_weights, update_points = prepare_volume_update(data_est,
+                                                          tsdf_est,
+                                                          frame,
+                                                          config)
+
+    values, weights = integrator.forward(update_values,
+                                         update_indices,
+                                         update_weights,
+                                         entry['current'],
+                                         entry['weights'])
+
+    return values, weights
+
+
+
+
 
 
 def pipeline(batch,
-             extractor,
-             routing_model,
-             tsdf_model,
-             integrator,
-             database,
-             device,
-             config,
-             routing_config,
-             sigma,
-             mean,
-             mode='test'):
+             extractor, routing_model, tsdf_model, integrator, database,
+             device, config, routing_config, sigma, mean, mode='test'):
 
     """
     Learned real-time depth map fusion pipeline
@@ -194,7 +228,12 @@ def pipeline(batch,
     output = dict()
 
     # routing
-    frame, confidence = routing(batch, routing_model, device, config, routing_config)
+    if routing_model is not None:
+        frame, confidence = routing(batch, routing_model, device, config, routing_config)
+    else:
+        frame = batch[config.DATA.input]
+        confidence = None
+
     if confidence is not None:
         confidence = confidence.clone()
         # filter according to confidence
@@ -255,7 +294,7 @@ def pipeline(batch,
     else:
 
         if config.DATA.dataset == 'modelnet' or config.DATA.dataset == 'shapenet':
-            mask = batch['original_mask'].to(device)
+            mask = batch['original_mask']
             filtered_frame = torch.where(mask == 0, torch.zeros_like(frame), frame)
 
         else:
@@ -304,13 +343,10 @@ def pipeline(batch,
         values['weights'] = values_est['weights']
 
     else:
-
-    #TODO: check what volume is and change it to interface
-    data_est = extractor.forward(frame, batch['extrinsics'], batch['intrinsics'], volume)
-    data_gt = extractor.forward(frame,
-                               batch['extrinsics'],
-                               batch['intrinsics'],
-                               volume)
+        values = extractor.forward(frame,
+                                   batch['extrinsics'],
+                                   batch['intrinsics'],
+                                   volume)
 
     groundtruth = values['gt']
     groundtruth = torch.clamp(groundtruth, -0.01, 0.01)

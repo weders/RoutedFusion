@@ -5,17 +5,14 @@ from torch import nn
 
 class FusionNet(nn.Module):
 
-    def __init__(self,
-                 confidence=True,
-                 uncertainty=False,
-                 n_points=9):
+    def __init__(self, config):
 
         super(FusionNet, self).__init__()
 
-        self.uncertainty = uncertainty
+        self.uncertainty = config.uncertainty
 
-        self.n_channels = 2 * n_points + 1 + int(confidence)
-        self.n_points = n_points
+        self.n_channels = 2 * config.n_points + 1 + int(config.confidence)
+        self.n_points = config.n_points
 
         self.block1 = nn.Sequential(nn.Conv2d(self.n_channels, self.n_channels, (3, 3), padding=1),
                                     nn.BatchNorm2d(self.n_channels),

@@ -11,22 +11,19 @@ from tqdm import tqdm
 
 import datetime
 
-from weight_learning.extractor import interpolation_weights, \
+from modules.extractor import interpolation_weights, \
     get_index_mask, extract_values, extract_indices, insert_values, trilinear_interpolation
-from weight_learning.extractor import Extractor
+from modules.extractor import Extractor
 
 
 class VolumeDB(Dataset):
 
-    def __init__(self, scene_list, dataset,
-                 transform=None, mode='flattened_block',
-                 initial_value=-10.e10):
+    def __init__(self, dataset, config):
 
         super(VolumeDB, self).__init__()
 
-        self.transform = transform
-        self.mode = mode
-        self.initial_value = initial_value
+        self.transform = config.transform
+        self.initial_value = config.init_value
 
         self.scenes_gt = {}
         self.scenes_est = {}
@@ -34,8 +31,8 @@ class VolumeDB(Dataset):
         self.counts = {}
 
         # load voxelgrids and initialize estimated scenes
-        if scene_list is not None and dataset.__class__.__name__ != 'ModelNet':
-            with open(scene_list, 'r') as file:
+        if config.scene_list is not None and dataset.__class__.__name__ != 'ModelNet':
+            with open(config.scene_list, 'r') as file:
                 scenes = file.readlines()
                 for scene in scenes:
                     scene, room = scene.rstrip().split('\t')
@@ -85,7 +82,7 @@ class VolumeDB(Dataset):
 
         elif dataset.__class__.__name__ == 'Microsoft':
 
-            if dataset._scene_list is None:
+            if dataset._config.scene_list is None:
                 scene = dataset._scene
                 if dataset.split:
                     for sp in range(len(dataset.grids)):
@@ -130,7 +127,7 @@ class VolumeDB(Dataset):
             self.counts[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
 
         elif dataset.__class__.__name__ == 'ModelNet':
-            with open(scene_list, 'r') as file:
+            with open(config.scene_list, 'r') as file:
                 scenes = file.readlines()
             for scene in scenes:
                 key = scene.rstrip()
