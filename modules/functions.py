@@ -63,7 +63,7 @@ def prepare_volume_update(data, est, inputs, config, outlier=None, confidence=No
     return update_values, update_indices, update_weights, update_points
 
 
-def routing(batch, routing_model, device, config, routing_config):
+def routing(batch, routing_model, config):
 
     """
     Function for the feature extractor, denoising the depth maps and
@@ -78,15 +78,15 @@ def routing(batch, routing_model, device, config, routing_config):
     """
 
     inputs = batch[config.DATA.input]
-    inputs = inputs.to(device)
+    # inputs = inputs.to(device)
     inputs = inputs.unsqueeze_(1)  # add number of channels
 
     if config.ROUTING.do:
 
-        if routing_config.MODEL.n_input_channels == 4:
-            image = batch['image'].float()
-            image = image.to(device)
-            inputs = torch.cat((inputs, image), dim=1)
+        # if routing_config.MODEL.n_input_channels == 4:
+        #     image = batch['image'].float()
+        #     image = image.to(device)
+        #     inputs = torch.cat((inputs, image), dim=1)
 
         if config.DATA.dataset == 'microsoft' or \
             config.DATA.dataset == 'eth3d':
