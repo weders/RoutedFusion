@@ -2,6 +2,8 @@ import torch
 import argparse
 import os
 
+import numpy as np
+
 from utils import loading
 from utils import setup
 from utils import transform
@@ -10,7 +12,7 @@ from modules.extractor import Extractor
 from modules.integrator import Integrator
 from modules.model import FusionNet
 from modules.routing import ConfidenceRouting
-from modules.functions import pipeline_clean
+from modules.functions import pipeline
 
 from tqdm import tqdm
 
@@ -40,7 +42,8 @@ def test(args, config):
     config.DATA.scene_list = 'lists/shapenet/train.test3.txt'
     config.DATA.transform = transform.ToTensor()
 
-    device = torch.device("cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     config.MODEL.confidence = False
     config.MODEL.uncertainty = False
     config.MODEL.device = device
@@ -51,12 +54,18 @@ def test(args, config):
 
     # get test database
     database = setup.get_database(dataset, config)
+    database.to_tsdf()
 
     # setup pipeline
     extractor = Extractor(config.MODEL)
     integrator = Integrator()
     fusion = FusionNet(config.MODEL)
     routing = ConfidenceRouting(1, 64, 1, 1, False)
+
+    extractor = extractor.to(device)
+    integrator = integrator.to(device)
+    fusion = fusion.to(device)
+    routing = routing.to(device)
 
     # load trained components of pipeline
     loading.load_model(args['fusion_model'], fusion)
@@ -68,13 +77,17 @@ def test(args, config):
 
         entry = database[scene_id]
 
+        # put all data on GPU
+        entry = transform.to_device(entry, device)
+        batch = transform.to_device(batch, device)
+
         # put original mask
         batch['mask'] = batch['original_mask']
 
         # fusion pipeline
-        tsdf_grid, weights_grid = pipeline_clean(batch, entry,
-                                                 routing, extractor, fusion, integrator,
-                                                 config)
+        tsdf_grid, weights_grid = pipeline(batch, entry,
+                                           routing, extractor, fusion, integrator,
+                                           config)
 
         # update database
         database.scenes_est[scene_id]._volume = tsdf_grid.detach().numpy()
@@ -82,13 +95,19 @@ def test(args, config):
 
     database.filter()
 
+    acc_tot = 0.
+
     for key in database.scenes_est.keys():
 
         tsdf_grid_est = torch.Tensor(database.scenes_est[key]._volume)
         tsdf_grid_gt = torch.Tensor(database.scenes_gt[key]._volume)
         tsdf_weights = database.fusion_weights[key]
 
-        database.save(args['output_dir'], key)
+        tsdf_grid_est[np.where(tsdf_weights < 3)] = 0.
+        tsdf_grid_gt[np.where(tsdf_weights < 3)] = 0.
+
+
+        database.save(args['output_dir'], key, groundtruth=True)
 
         # compute accuracy
         mask_gt = torch.where(torch.abs(tsdf_grid_gt) < 0.05, torch.ones_like(tsdf_grid_gt),
@@ -124,7 +143,9 @@ def test(args, config):
 
         accuracy = 100. * accuracy
         print(accuracy)
+        acc_tot += accuracy
 
+    print('final acc', acc_tot / 58.)
 
 
         # mesh = extract_mesh_marching_cubes(tsdf_grid, level=-1.e-08)

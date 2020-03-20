@@ -168,7 +168,7 @@ class VolumeDB(Dataset):
             self.scenes_est[key].volume[weights < value] = self.initial_value
             self.fusion_weights[key][weights < value] = 0
 
-    def save(self, path, scene_id=None, epoch=None):
+    def save(self, path, scene_id=None, epoch=None, groundtruth=False):
 
         if scene_id is None:
             raise NotImplementedError
@@ -190,6 +190,15 @@ class VolumeDB(Dataset):
                 hf.create_dataset("weights",
                                   shape=self.fusion_weights[scene_id].shape,
                                   data=self.fusion_weights[scene_id])
+
+            if groundtruth:
+                groundtruthname = '{}.gt.hf5'.format(scene_id.replace('/', '.'))
+                with h5py.File(os.path.join(path, groundtruthname), 'w') as hf:
+                    hf.create_dataset("TSDF",
+                                      shape=self.scenes_gt[
+                                          scene_id].volume.shape,
+                                      data=self.scenes_gt[scene_id].volume)
+
 
     def save_txt(self, path, scene_id=None, epoch=None):
 
