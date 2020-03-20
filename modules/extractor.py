@@ -86,13 +86,17 @@ class Extractor(nn.Module):
         yy = yy.contiguous().view(1, h*w, 1).repeat((b, 1, 1))
         zz = depth.contiguous().view(b, h*w, 1)
 
+        xx, yy, zz = xx.to(self.device), yy.to(self.device), zz.to(self.device)
+
         # generate points in pixel space
         points_p = torch.cat((yy, xx, zz), dim=2).clone()
 
-        # invert
+        # invert intrinsics
         intrinsics_inv = intrinsics.inverse()
 
+        # prepare for homogenous coordinates
         homogenuous = torch.ones((b, 1, n_points)).double()
+        homogenuous = homogenuous.to(self.device)
 
         # transform points from pixel space to camera space to world space (p->c->w)
         points_p[:, :, 0] *= zz[:, :, 0]

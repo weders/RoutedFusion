@@ -28,3 +28,10 @@ class ToTensor(object):
                 result[key] = sample[key]
 
         return result
+
+
+def to_device(data, device):
+    for k in data.keys():
+        if torch.is_tensor(data[k]):
+            data[k] = data[k].to(device)
+    return data

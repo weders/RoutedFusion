@@ -47,10 +47,10 @@ def prepare_volume_update(data, est, inputs, config, outlier=None, confidence=No
         valid = valid.nonzero()[:, 1]
 
     # moving everything to the cpu
-    update_indices = data['indices'].cpu()[:, valid, :tail_points, :, :]
-    update_weights = data['weights'].cpu()[:, valid, :tail_points, :]
-    update_points = data['points'].cpu()[:, valid, :tail_points, :]
-    update_values = est.cpu()[:, valid, :tail_points]
+    update_indices = data['indices'][:, valid, :tail_points, :, :]
+    update_weights = data['weights'][:, valid, :tail_points, :]
+    update_points = data['points'][:, valid, :tail_points, :]
+    update_values = est[:, valid, :tail_points]
 
     update_values = torch.clamp(update_values, -0.1, 0.1)
 

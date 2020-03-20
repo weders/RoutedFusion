@@ -58,7 +58,7 @@ def test(args, config):
 
     # setup pipeline
     extractor = Extractor(config.MODEL)
-    integrator = Integrator()
+    integrator = Integrator(config.MODEL)
     fusion = FusionNet(config.MODEL)
     routing = ConfidenceRouting(1, 64, 1, 1, False)
 
@@ -90,8 +90,8 @@ def test(args, config):
                                            config)
 
         # update database
-        database.scenes_est[scene_id]._volume = tsdf_grid.detach().numpy()
-        database.fusion_weights[scene_id] = weights_grid.detach().numpy()
+        database.scenes_est[scene_id]._volume = tsdf_grid.cpu().detach().numpy()
+        database.fusion_weights[scene_id] = weights_grid.cpu().detach().numpy()
 
     database.filter()
 

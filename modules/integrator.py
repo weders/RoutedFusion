@@ -3,9 +3,11 @@ import torch
 
 class Integrator(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, config):
 
         super(Integrator, self).__init__()
+
+        self.device = config.device
 
     def forward(self, values, indices, weights, values_volume, weights_volume):
 
@@ -32,8 +34,8 @@ class Integrator(torch.nn.Module):
 
         update = weights * values
 
-        wcache = torch.zeros(values_volume.shape).double().view(xs * ys * zs)
-        vcache = torch.zeros(values_volume.shape).double().view(xs * ys * zs)
+        wcache = torch.zeros(values_volume.shape).double().view(xs * ys * zs).to(self.device)
+        vcache = torch.zeros(values_volume.shape).double().view(xs * ys * zs).to(self.device)
 
         index = ys * zs * indices[:, 0] + zs * indices[:, 1] + indices[:, 2]
 
