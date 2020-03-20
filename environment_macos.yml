@@ -12,6 +12,8 @@ dependencies:
   - dask-core=2.12.0=py_0
   - decorator=4.4.2=py_0
   - freetype=2.9.1=hb4e5f40_0
+  - h5py=2.10.0=py37h3134771_0
+  - hdf5=1.10.4=hfa1e0ec_0
   - imageio=2.8.0=py_0
   - intel-openmp=2019.4=233
   - jpeg=9b=he5867d9_2
