@@ -12,7 +12,7 @@ from modules.extractor import Extractor
 from modules.integrator import Integrator
 from modules.model import FusionNet
 from modules.routing import ConfidenceRouting
-from modules.functions import pipeline
+from modules.pipeline import Pipeline
 
 from tqdm import tqdm
 
@@ -57,6 +57,7 @@ def test(args, config):
     database.to_tsdf()
 
     # setup pipeline
+    pipeline = Pipeline(config)
     extractor = Extractor(config.MODEL)
     integrator = Integrator(config.MODEL)
     fusion = FusionNet(config.MODEL)
@@ -66,10 +67,14 @@ def test(args, config):
     integrator = integrator.to(device)
     fusion = fusion.to(device)
     routing = routing.to(device)
+    pipeline = pipeline.to(device)
 
     # load trained components of pipeline
     loading.load_model(args['fusion_model'], fusion)
     loading.load_model(args['routing_model'], routing)
+
+    loading.load_model(args['fusion_model'], pipeline._fusion_network)
+    loading.load_model(args['routing_model'], pipeline._routing_network)
 
     for i, batch in tqdm(enumerate(loader), total=len(dataset)):
 
@@ -85,9 +90,11 @@ def test(args, config):
         batch['mask'] = batch['original_mask']
 
         # fusion pipeline
-        tsdf_grid, weights_grid = pipeline(batch, entry,
-                                           routing, extractor, fusion, integrator,
-                                           config)
+        # tsdf_grid, weights_grid = pipeline(batch, entry,
+        #                                    routing, extractor, fusion, integrator,
+        #                                    config)
+
+        tsdf_grid, weights_grid = pipeline(batch, entry)
 
         # update database
         database.scenes_est[scene_id]._volume = tsdf_grid.cpu().detach().numpy()
