@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.nn.functional import normalize
 
+import datetime
 
 class Extractor(nn.Module):
     '''
@@ -32,6 +33,8 @@ class Extractor(nn.Module):
         :return: values/voxels of groundtruth and current as well as at its coordinates and indices
         '''
 
+        self.interpolation_initialized = False
+
         intrinsics = intrinsics.double()
         extrinsics = extrinsics.double()
 
@@ -52,12 +55,27 @@ class Extractor(nn.Module):
 
         ray_pts, ray_dists = self.extract_values(coords, eye_w, origin, resolution, n_points=int((self.n_points - 1)/2))
 
-        fusion_values, fusion_weights, indices, weights = trilinear_interpolation(ray_pts, volume, weights)
+        start = datetime.datetime.now()
+        fusion_values = self.extract(ray_pts, volume)
+        end = datetime.datetime.now()
+
+        start = datetime.datetime.now()
+        fusion_weights = self.extract(ray_pts, weights)
+        end = datetime.datetime.now()
+
+        # TODO: train everything with new extraction
+        # start = datetime.datetime.now()
+        # fusion_values_old, fusion_weights_old, indices_old, weights_old = trilinear_interpolation(ray_pts, volume, weights)
+        # end = datetime.datetime.now()
 
         n1, n2, n3 = fusion_values.shape
 
-        indices = indices.view(n1, n2, n3, 8, 3)
-        weights = weights.view(n1, n2, n3, 8)
+        fusion_weights = fusion_weights.float()
+        fusion_values = fusion_values.float()
+
+
+        indices = self.indices.view(n1, n2, n3, 8, 3).float()
+        weights = self.weights.view(n1, n2, n3, 8).float()
 
         # packing
         values = dict(fusion_values=fusion_values,
@@ -184,6 +202,111 @@ class Extractor(nn.Module):
 
         return points, dists
 
+    def extract(self, points, volume):
+
+        # get shape of canonical view
+        b, n, s, d = points.shape
+
+        # reshape canonical view
+        points = points.view(b * n * s, d)
+
+        values = self.interpolate(points, volume)
+
+        # reshape canonical view
+        values = values.view(b, n, s)
+
+        return values
+
+    def interpolate(self, points, volume):
+
+        if not self.interpolation_initialized:
+            # get shape
+            n, d = points.shape
+
+            # floor points
+            pointsf = torch.floor(points) + 0.5 * torch.ones_like(points)
+
+            # compute increments
+            df = torch.abs(points - pointsf)
+
+            # reshape
+            pointsf = pointsf.unsqueeze_(1)
+
+            # compute index shift
+            indices = []
+            for i in range(0, 2):
+                for j in range(0, 2):
+                    for k in range(0, 2):
+                        indices.append(torch.Tensor([i, j, k]).view(1, 1, 3))
+            indices = torch.cat(indices, dim=0)
+            indices = indices.view(1, 8, 3)
+            self.index_shift = indices.int().to(points.device)
+
+            self.indices = torch.floor(points.unsqueeze_(1)) + self.index_shift
+
+            # init interpolation weights
+            self.weights = torch.sum(torch.zeros_like(self.indices), dim=-1)
+
+            # compute weights
+            self.weights[:, 0] = (1 - df[:, 0]) * (1 - df[:, 1]) * (1 - df[:, 2])
+            self.weights[:, 1] = (1 - df[:, 0]) * (1 - df[:, 1]) * df[:, 2]
+            self.weights[:, 2] = (1 - df[:, 0]) * df[:, 1] * (1 - df[:, 2])
+            self.weights[:, 3] = (1 - df[:, 0]) * df[:, 1] * df[:, 2]
+            self.weights[:, 4] = df[:, 0] * (1 - df[:, 1]) * (1 - df[:, 2])
+            self.weights[:, 5] = df[:, 0] * (1 - df[:, 1]) * df[:, 2]
+            self.weights[:, 6] = df[:, 0] * df[:, 1] * (1 - df[:, 2])
+            self.weights[:, 7] = df[:, 0] * df[:, 1] * df[:, 2]
+
+            # reshape indices
+            self.indices = self.indices.view(n * 8, d)
+            # self.indices = self.indices + 1
+
+            # filter valid indices
+            xs, ys, zs = volume.shape
+            # xs += 2
+            # ys += 2
+            # zs += 2
+
+            valid = ((self.indices[:, 0] >= 0) &
+                     (self.indices[:, 0] < xs) &
+                     (self.indices[:, 1] >= 0) &
+                     (self.indices[:, 1] < ys) &
+                     (self.indices[:, 2] >= 0) &
+                     (self.indices[:, 2] < zs))
+            valid = valid.int()
+
+            self.valid = torch.nonzero(valid)[:, 0]
+
+            self.indices_valid = self.indices[self.valid, :].long()
+
+            self.interpolation_initialized = True
+
+        volume = volume.unsqueeze_(0).unsqueeze_(0)
+        padded_volume = torch.nn.functional.pad(volume, [1, 1, 1, 1, 1, 1],
+                                                mode='replicate')
+
+        volume = volume.squeeze_(0).squeeze_(0)
+        padded_volume = padded_volume.squeeze_(0).squeeze_(0)
+
+        # get valid indices
+
+        # extract valid values
+        values_valid = volume[self.indices_valid[:, 0],
+                              self.indices_valid[:, 1],
+                              self.indices_valid[:, 2]]
+
+        # assign valid values
+        values = torch.zeros_like(self.indices).sum(dim=-1)
+        values[self.valid] = values_valid
+
+        # reshape values
+        values = values.view(self.weights.shape)
+
+        # do interpolation
+        values = torch.sum(self.weights * values, dim=-1)
+
+        return values
+
 
 def interpolation_weights(points, mode='center'):
 
@@ -286,6 +409,102 @@ def extract_indices(indices, mask):
                                 y.unsqueeze_(1),
                                 z.unsqueeze_(1)), dim=1)
     return masked_indices
+
+
+def extract(p, volume):
+
+    # get shape of canonical view
+    b, n, s, d = p.shape
+
+    # reshape canonical view
+    p = p.view(b * n * s, d)
+
+    values = interpolate(p, volume)
+
+    # reshape canonical view
+    values = values.view(b, n, s)
+
+    return values
+
+
+def interpolate(points, volume):
+
+    # get shape
+    n, d = points.shape
+
+    # floor points
+    pointsf = torch.floor(points)
+
+    # compute increments
+    df = torch.abs(points - pointsf)
+
+    # reshape
+    pointsf = pointsf.unsqueeze_(1)
+
+    # compute index shift
+    indices = []
+    for i in range(0, 2):
+        for j in range(0, 2):
+            for k in range(0, 2):
+                indices.append(torch.Tensor([i, j, k]).view(1, 1, 3))
+    indices = torch.cat(indices, dim=0)
+    indices = indices.view(1, 8, 3)
+    index_shift = indices.int().to(points.device)
+
+    indices = pointsf + index_shift
+
+    # init interpolation weights
+    weights = torch.sum(torch.zeros_like(indices), dim=-1)
+
+    # compute weights
+    weights[:, 0] = (1 - df[:, 0]) * (1 - df[:, 1]) * (1 - df[:, 2])
+    weights[:, 1] = (1 - df[:, 0]) * (1 - df[:, 1]) * df[:, 2]
+    weights[:, 2] = (1 - df[:, 0]) * df[:, 1] * (1 - df[:, 2])
+    weights[:, 3] = (1 - df[:, 0]) * df[:, 1] * df[:, 2]
+    weights[:, 4] = df[:, 0] * (1 - df[:, 1]) * (1 - df[:, 2])
+    weights[:, 5] = df[:, 0] * (1 - df[:, 1]) * df[:, 2]
+    weights[:, 6] = df[:, 0] * df[:, 1] * (1 - df[:, 2])
+    weights[:, 7] = df[:, 0] * df[:, 1] * df[:, 2]
+
+    volume = volume.unsqueeze_(0).unsqueeze_(0)
+    padded_volume = torch.nn.functional.pad(volume, [1, 1, 1, 1, 1, 1], mode='replicate')
+
+    volume = volume.squeeze_(0).squeeze_(0)
+    padded_volume = padded_volume.squeeze_(0).squeeze_(0)
+
+    # reshape indices
+    indices = indices.view(n * 8, d)
+    indices = indices + 1
+
+    # filter valid indices
+    xs, ys, zs = padded_volume.shape
+
+    valid = ((indices[:, 0] >= 0) &
+             (indices[:, 0] < xs) &
+             (indices[:, 1] >= 0) &
+             (indices[:, 1] < ys) &
+             (indices[:, 2] >= 0) &
+             (indices[:, 2] < zs))
+    valid = valid.int()
+    valid = torch.nonzero(valid)[:, 0]
+
+    # get valid indices
+    indices_valid = indices[valid, :].long()
+
+    # extract valid values
+    values_valid = padded_volume[indices_valid[:, 0], indices_valid[:, 1], indices_valid[:, 2]]
+
+    # assign valid values
+    values = torch.zeros_like(indices).sum(dim=-1)
+    values[valid] = values_valid
+
+    # reshape values
+    values = values.view(weights.shape)
+
+    # do interpolation
+    values = torch.sum(weights * values, dim=-1)
+
+    return values
 
 
 def insert_values(values, indices, volume):
