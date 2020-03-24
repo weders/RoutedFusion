@@ -88,7 +88,6 @@ dependencies:
     - easydict==1.9
     - envisage==4.9.2
     - imageio==2.8.0
-    - mayavi==4.7.1
     - networkx==2.4
     - pandas==1.0.1
     - plyfile==0.7.1
