@@ -24,3 +24,6 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 **Start and enter the container from the image**
 <pre><code>docker run -t routed-fusion:latest /bin/bash
 </code></pre>
+
+### Data Preparation
+The models are trained on the ShapeNet v1 dataset. Therefore, the data needs to be downloaded and perpared using mesh-fusion.
