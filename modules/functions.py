@@ -163,11 +163,7 @@ def pipeline(data,
     # plt.imshow(frame.detach().numpy()[0])
     # plt.show()
 
-    # get shape of batch
-    b, h, w = frame.shape
 
-    # get current tsdf values
-    scene_id = data['scene_id'][0]
 
     # TODO: check what volume is and change it to interface
     data_est = extractor.forward(frame, data['extrinsics'], data['intrinsics'],
