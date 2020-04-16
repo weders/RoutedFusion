@@ -25,5 +25,9 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 <pre><code>docker run -t routed-fusion:latest /bin/bash
 </code></pre>
 
+**Alternatively, create the Anaconda environment**
+<pre><code>conda create env -f environment.yml
+</code></pre>
+
 ### Data Preparation
 The models are trained on the ShapeNet v1 dataset. Therefore, the data needs to be downloaded and perpared using mesh-fusion.
