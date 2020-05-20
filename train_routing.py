@@ -88,7 +88,7 @@ def train(args, config):
             output = model.forward(inputs)
 
             est = output[:, 0, :, :].unsqueeze_(1)
-            unc = output[:, 0, :, :].unsqueeze_(1)
+            unc = output[:, 1, :, :].unsqueeze_(1)
 
             if config.DATA.dataset == 'modelnet' or config.DATA.dataset == 'shapenet':
                 mask = batch['mask'].to(device).unsqueeze_(1)
@@ -124,7 +124,7 @@ def train(args, config):
             output = model.forward(inputs)
 
             est = output[:, 0, :, :].unsqueeze_(1)
-            unc = output[:, 0, :, :].unsqueeze_(1)
+            unc = output[:, 1, :, :].unsqueeze_(1)
 
             if config.DATA.dataset == 'modelnet' or config.DATA.dataset == 'shapenet':
                 mask = batch['mask'].to(device).unsqueeze_(1)
