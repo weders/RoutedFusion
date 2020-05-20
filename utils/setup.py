@@ -1,4 +1,6 @@
 import torch
+import os
+import logging
 
 from dataset import ShapeNet
 
@@ -9,6 +11,7 @@ from utils import transform
 from easydict import EasyDict
 from copy import copy
 
+from utils.saving import *
 
 def get_data_config(config, mode):
 
@@ -36,3 +39,64 @@ def get_data(dataset, config):
 
 def get_database(dataset, config):
     return VolumeDB(dataset, config.DATA)
+
+
+def get_workspace(config):
+    workspace_path = os.path.join(config.SETTINGS.experiment_path,
+                                  config.TIMESTAMP)
+    workspace = Workspace(workspace_path)
+    return workspace
+
+
+def get_logger(path, name='training'):
+
+    filehandler = logging.FileHandler(os.path.join(path, '{}.logs'.format(name)), 'a')
+    consolehandler = logging.StreamHandler()
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    filehandler.setFormatter(formatter)
+    consolehandler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+
+    for hdlr in logger.handlers[:]:  # remove all old handlers
+        logger.removeHandler(hdlr)
+
+    logger.addHandler(filehandler)  # set the new handler
+    logger.addHandler(consolehandler)
+
+    logger.setLevel(logging.DEBUG)
+
+    return logger
+
+
+class Workspace(object):
+
+    def __init__(self, path):
+
+        self.workspace_path = path
+        self.model_path = os.path.join(path, 'model')
+        self.log_path = os.path.join(path, 'logs')
+
+        os.makedirs(self.workspace_path)
+        os.makedirs(self.model_path)
+        os.makedirs(self.log_path)
+
+    def _init_logger(self):
+        self.train_logger = get_logger(self.log_path, 'training')
+        self.val_logger = get_logger(self.log_path, 'validation')
+
+    def save_config(self, config):
+        print('Saving config to ', self.workspace_path)
+        save_config_to_json(self.workspace_path, config)
+
+    def save_model_state(self, state, is_best=False):
+        save_checkpoint(state, is_best, self.model_path)
+
+    def log(self, message, mode='train'):
+        if mode == 'train':
+            self.train_logger.info(message)
+        elif mode == 'val':
+            self.val_logger.info(message)
+

@@ -1,5 +1,6 @@
 import torch
 import argparse
+import datetime
 
 from tqdm import tqdm
 
@@ -27,6 +28,10 @@ def train(args, config):
         device = torch.device("cpu")
     elif args['device'] == 'gpu':
         device = torch.device('cuda:0')
+
+    config.TIMESTAMP = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
+
+    workspace = get_workspace(config)
 
     # get train dataset
     train_data_config = get_data_config(config, mode='train')
@@ -68,7 +73,6 @@ def train(args, config):
     # train_metrics = get_metrics(metric_fns)
     # val_metrics = get_metrics(metric_fns)
 
-
     for epoch in range(0, config.TRAINING.n_epochs):
 
         for i, batch in enumerate(tqdm(train_loader, total=n_train_batches)):
@@ -104,6 +108,9 @@ def train(args, config):
                 optimizer.step()
                 optimizer.zero_grad()
 
+        val_loss = 0.
+        val_loss_best = 0.
+
         for i, batch in enumerate(tqdm(val_loader, total=n_val_batches)):
 
             inputs = batch[config.DATA.input]
@@ -132,6 +139,22 @@ def train(args, config):
                 gradient_mask = None
 
             loss = criterion.forward(est, unc, target, gradient_mask)
+            val_loss += loss.item()
+
+        val_loss /= n_val_batches
+
+        # define model state for storing
+        model_state = {'epoch': epoch,
+                       'pipeline_state_dict': model.state_dict(),
+                       'optim_dict': optimizer.state_dict()}
+
+        if val_loss_best <= val_loss:
+            val_loss_best = val_loss
+            workspace.log('Found new best model at epoch {}'.format(epoch), mode='val')
+            workspace.save_model_state(model_state, is_best=True)
+        else:
+            workspace.save_model_state(model_state)
+            workspace.save_model_state()
 
 
 if __name__ == '__main__':
@@ -140,8 +163,7 @@ if __name__ == '__main__':
     args = arg_parser()
 
     # get configs
-    # config = load_config_from_yaml(args['config'])
-    config = load_config_from_yaml('configs/routing/shapenet.noise.01.yaml')
+    config = load_config_from_yaml(args['config'])
 
     # train
     train(args, config)
