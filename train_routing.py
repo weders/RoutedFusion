@@ -31,6 +31,7 @@ def train(args, config):
 
     config.TIMESTAMP = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
+
     workspace = get_workspace(config)
 
     # get train dataset

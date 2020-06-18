@@ -1,7 +1,8 @@
 import torch
 import os
 import logging
-
+import h5py
+import numpy as np
 from dataset import ShapeNet
 
 from modules.griddb import VolumeDB
@@ -37,8 +38,16 @@ def get_data(dataset, config):
         return eval(dataset)(config)
 
 
-def get_database(dataset, config):
-    return VolumeDB(dataset, config.DATA)
+def get_database(dataset, config, mode='train'):
+
+    #TODO: make this better
+    database_config = copy(config.DATA)
+    database_config.transform = transform.ToTensor()
+    database_config.scene_list = eval('config.DATA.{}_scene_list'.format(mode))
+
+    print(database_config.scene_list)
+
+    return VolumeDB(dataset, database_config)
 
 
 def get_workspace(config):
@@ -71,6 +80,21 @@ def get_logger(path, name='training'):
     return logger
 
 
+def save_tsdf(filename, data):
+    print('just before saving', np.unique(data))
+    with h5py.File(filename, 'w') as file:
+        file.create_dataset('TSDF',
+                            shape=data.shape,
+                            data=data)
+
+def save_weights(filename, data):
+    with h5py.File(filename, 'w') as file:
+        file.create_dataset('weights',
+                            shape=data.shape,
+                            data=data)
+
+
+
 class Workspace(object):
 
     def __init__(self, path):
@@ -78,10 +102,12 @@ class Workspace(object):
         self.workspace_path = path
         self.model_path = os.path.join(path, 'model')
         self.log_path = os.path.join(path, 'logs')
+        self.output_path = os.path.join(path, 'output')
 
         os.makedirs(self.workspace_path)
         os.makedirs(self.model_path)
         os.makedirs(self.log_path)
+        os.makedirs(self.output_path)
 
     def _init_logger(self):
         self.train_logger = get_logger(self.log_path, 'training')
@@ -93,6 +119,14 @@ class Workspace(object):
 
     def save_model_state(self, state, is_best=False):
         save_checkpoint(state, is_best, self.model_path)
+
+    def save_tsdf_data(self, file, data):
+        tsdf_file = os.path.join(self.output_path, file)
+        save_tsdf(tsdf_file, data)
+
+    def save_weigths_data(self, file, data):
+        weight_files = os.path.join(self.output_path, file)
+        save_weights(weight_files, data)
 
     def log(self, message, mode='train'):
         if mode == 'train':

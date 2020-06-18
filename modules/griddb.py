@@ -15,6 +15,7 @@ from modules.extractor import interpolation_weights, \
     get_index_mask, extract_values, extract_indices, insert_values, trilinear_interpolation
 from modules.extractor import Extractor
 
+from utils.metrics import evaluation
 
 class VolumeDB(Dataset):
 
@@ -168,6 +169,19 @@ class VolumeDB(Dataset):
             self.scenes_est[key].volume[weights < value] = self.initial_value
             self.fusion_weights[key][weights < value] = 0
 
+    def save_to_workspace(self, workspace):
+
+        for key in self.scenes_est.keys():
+
+            tsdf_volume = self.scenes_est[key].volume
+            weight_volume = self.fusion_weights[key]
+
+            tsdf_file = key.replace('/', '.') + '.tsdf.hf5'
+            weight_file = key.replace('/', '.') + '.weights.hf5'
+
+            workspace.save_tsdf_data(tsdf_file, tsdf_volume)
+            workspace.save_weigths_data(weight_file, weight_volume)
+
     def save(self, path, scene_id=None, epoch=None, groundtruth=False):
 
         if scene_id is None:
@@ -217,9 +231,48 @@ class VolumeDB(Dataset):
             np.savetxt(filename, self.scenes_est[scene_id].volume)
             np.savetxt(weightname, self.fusion_weights[scene_id])
 
+    def evaluate(self):
+
+        eval_results = {}
+
+        for scene_id in self.scenes_est.keys():
+
+            print('Evaluating ', scene_id, '...')
+
+            weights = self.fusion_weights[scene_id]
+            est = self.scenes_est[scene_id].volume
+            gt = self.scenes_gt[scene_id].volume
+
+            # clip groundtruth to truncation band
+            # gt[gt < -self.initial_value] = self.initial_value
+            # gt = np.clip(gt, self.initial_value, -self.initial_value)
+
+            mask = np.copy(weights)
+            mask[mask > 0] = 1.
+
+            eval_results_scene = evaluation(est, gt, mask)
+
+            for key in eval_results_scene.keys():
+
+                print(key, eval_results_scene[key])
+
+                if not eval_results.get(key):
+                    eval_results[key] = eval_results_scene[key]
+                else:
+                    eval_results[key] += eval_results_scene[key]
+
+
+
+        # normalizing metrics
+        for key in eval_results.keys():
+            eval_results[key] /= len(self.scenes_est.keys())
+
+        return eval_results
+
+
     def reset(self):
         for scene_id in self.scenes_est.keys():
-            self.scenes_est[scene_id].volume = self.initial_value*np.ones(self.scenes_est[scene_id].volume.shape)
+            self.scenes_est[scene_id].volume = self.initial_value * np.ones(self.scenes_est[scene_id].volume.shape)
             self.fusion_weights[scene_id] = np.zeros(self.scenes_est[scene_id].volume.shape)
 
     def update(self, scene_id,
@@ -320,12 +373,12 @@ class VolumeDB(Dataset):
         return coords, ray_pts, indices, weights
 
 
-    def to_tsdf(self, mode='normal', trunaction=1.2):
+    def to_tsdf(self, mode='normal', truncation=1.2):
         for scene_id in self.scenes_gt.keys():
             self.scenes_gt[scene_id].transform(mode='normal')
             self.scenes_gt[scene_id].volume *= self.scenes_gt[scene_id].resolution
             if mode == 'truncate':
-                self.scenes_gt[scene_id].volume[np.abs(self.scenes_gt[scene_id].volume) > trunaction] = self.initial_value
+                self.scenes_gt[scene_id].volume[np.abs(self.scenes_gt[scene_id].volume) > truncation] = self.initial_value
 
     def _sample_values(self, values, indices):
 

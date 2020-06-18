@@ -3,6 +3,8 @@ import random
 import torch
 import time
 
+from scipy.ndimage.morphology import binary_dilation
+
 
 def add_kinect_noise(depth, sigma_fraction=0.05):
 
@@ -94,6 +96,41 @@ def add_outliers(x, scale=5, fraction=0.99):
     x[x < 0.] = 0.
 
     return x
+
+
+def add_outlier_blobs(x, scale=5, fraction=0.9):
+    # check for invalid data points
+    x[x < 0.] = 0.
+
+    random.seed(time.clock())
+    np.random.seed(int(time.clock()))
+
+    # filter with probability:
+    mask = np.random.uniform(0, 1, x.shape)
+    mask[mask >= fraction] = 1.0
+    mask[mask < fraction] = 0.0
+    mask[x == 0.] = 0.
+
+    for i in range(1, 4):
+        # filter with probability:
+        mask = np.random.uniform(0, 1, x.shape)
+        mask[mask <= (1. - fraction) / 3.] = -1.0
+        mask[mask > (1. - fraction) / 3.] = 0.0
+        mask[mask == -1.] = 1.
+        mask[x == 0.] = 0.
+
+
+        # dilation
+        mask = binary_dilation(mask, iterations=i).astype(np.float)
+
+        outliers = np.random.normal(0, scale=scale, size=x.shape)
+
+        x += np.multiply(outliers, mask)
+
+    x[x < 0.] = 0.
+
+    return x
+
 
 
 class EarlyStopping(object):

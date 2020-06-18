@@ -1,6 +1,7 @@
 SETTINGS:
   machine: leonhard
   gpu: True
+  experiment_path: #path to your experiment
 RESUME:
   resume: False
   model: None

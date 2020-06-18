@@ -5,7 +5,6 @@ from modules.extractor import Extractor
 from modules.model import FusionNet
 from modules.integrator import Integrator
 
-
 class Pipeline(torch.nn.Module):
 
     def __init__(self, config):
@@ -34,60 +33,77 @@ class Pipeline(torch.nn.Module):
 
         return frame, confidence
 
-    def _fusion(self, input):
+    def _fusion(self, input, weights, values):
 
         b, c, h, w = input.shape
 
         tsdf_pred = self._fusion_network.forward(input)
         tsdf_pred = tsdf_pred.permute(0, 2, 3, 1)
 
-        tsdf_est = tsdf_pred[:, :, :,
-                             :self.config.MODEL.n_points].view(b,
-                                                               h * w,
-                                                               self.config.MODEL.n_points)
+        output = dict()
 
-        return tsdf_est
+        tsdf_est = tsdf_pred[:, :, :, :self.config.MODEL.n_points].view(b, h * w,
+                                                                   self.config.MODEL.n_points)
 
-    def _prepare_fusion_input(self, frame, values, weights, confidence):
+        # computing weighted updates for loss calculation
+        tsdf_old = values['fusion_values']
+
+        weights = weights.view(b, h * w, self.config.MODEL.n_points)
+        weights = torch.where(weights < 0, torch.zeros_like(weights), weights)
+
+        tsdf_fused = (weights * tsdf_old + tsdf_est) / (
+                    weights + torch.ones_like(weights))
+
+        output['tsdf_est'] = tsdf_est
+        output['tsdf_fused'] = tsdf_fused
+
+        return output
+
+    def _prepare_fusion_input(self, frame, values, confidence=None):
 
         # get frame shape
         b, h, w = frame.shape
 
+        # extracting data
+        tsdf_input = values['fusion_values']
+        tsdf_weights = values['fusion_weights']
+
         # reshaping data
-        values = values.view(b, h, w, self.config.MODEL.n_points)
-        weights = weights.view(b, h, w, self.config.MODEL.n_points)
+        tsdf_input = tsdf_input.view(b, h, w, self.config.MODEL.n_points)
+        tsdf_weights = tsdf_weights.view(b, h, w, self.config.MODEL.n_points)
 
         tsdf_frame = torch.unsqueeze(frame, -1)
 
         # stacking input data
-        if self.config.DATA.confidence:
+        if self.config.MODEL.confidence:
             assert confidence is not None
             tsdf_confidence = torch.unsqueeze(confidence, -1)
-            tsdf_input = torch.cat(
-                [tsdf_frame, tsdf_confidence, weights, values], dim=3)
+            tsdf_input = torch.cat([tsdf_frame, tsdf_confidence, tsdf_weights, tsdf_input], dim=3)
             del tsdf_confidence
         else:
-            tsdf_input = torch.cat([tsdf_frame, weights, values], dim=3)
+            tsdf_input = torch.cat([tsdf_frame, tsdf_weights, tsdf_input], dim=3)
 
         # permuting input
         tsdf_input = tsdf_input.permute(0, -1, 1, 2)
 
-        return tsdf_input, weights
+        del tsdf_frame
 
-    def _prepare_volume_update(self, data, est, inputs):
+        return tsdf_input, tsdf_weights#, tsdf_target
+
+    def _prepare_volume_update(self, values, est, inputs):
 
         tail_points = self.config.MODEL.n_tail_points
+
         b, h, w = inputs.shape
         depth = inputs.view(b, h * w, 1)
 
         valid = (depth != 0.)
         valid = valid.nonzero()[:, 1]
 
-        # moving everything to the cpu
-        update_indices = data['indices'][:, valid, :tail_points, :, :]
-        update_weights = data['weights'][:, valid, :tail_points, :]
-        update_points = data['points'][:, valid, :tail_points, :]
-        update_values = est[:, valid, :tail_points]
+        update_indices = values['indices'].cpu()[:, valid, :tail_points, :, :]
+        update_weights = values['weights'].cpu()[:, valid, :tail_points, :]
+        update_points = values['points'].cpu()[:, valid, :tail_points, :]
+        update_values = est.cpu()[:, valid, :tail_points]
 
         update_values = torch.clamp(update_values, -0.1, 0.1)
 
@@ -95,58 +111,213 @@ class Pipeline(torch.nn.Module):
 
         return update_values, update_indices, update_weights, update_points
 
-    def forward(self, data, entry):
+    def fuse(self,
+             batch,
+             database,
+             device):
 
-        # routing network
-        if self._routing:
-            frame, confidence = self._routing(data)
-
-            # filtering according to confidence map
-            frame = torch.where(confidence < self.config.ROUTING.threshold,
-                                torch.zeros_like(frame),
-                                frame)
-
+        # routing
+        if self.config.ROUTING.do:
+            frame, confidence = self._routing(batch)
         else:
-            frame, confidence = data[self.config.DATA.input], None
+            frame = batch[self.config.DATA.input].squeeze_(1)
+            frame = frame.to(device)
+            confidence = None
 
-        # filtering valid pixels
-        frame = torch.where(data['original_mask'] == 0,
-                            torch.zeros_like(frame),
-                            frame)
+        mask = batch['original_mask'].to(device)
+        filtered_frame = torch.where(mask == 0, torch.zeros_like(frame),
+                                     frame)
 
-        # filter boundary pixels
-        frame[:, 0:3, :] = 0
-        frame[:, -1:-4, :] = 0
-        frame[:, :, 0:3] = 0
-        frame[:, :, -1:-4] = 0
+        # get current tsdf values
+        scene_id = batch['scene_id'][0]
+        volume = database[scene_id]
 
-        canonical_view = self._extractor(frame,
-                                         data['extrinsics'],
-                                         data['intrinsics'],
-                                         entry['current'],
-                                         entry['origin'],
-                                         entry['resolution'],
-                                         entry['weights'])
+        values = self._extractor.forward(frame,
+                                         batch['extrinsics'],
+                                         batch['intrinsics'],
+                                         volume['current'],
+                                         volume['origin'],
+                                         volume['resolution'],
+                                         volume['weights'])
 
-        tsdf_input, tsdf_weights = self._prepare_fusion_input(frame,
-                                                              canonical_view['fusion_values'],
-                                                              canonical_view['fusion_weights'],
+        tsdf_input, tsdf_weights = self._prepare_fusion_input(frame, values,
                                                               confidence)
 
-        tsdf_est = self._fusion(tsdf_input)
+
+        fusion_output = self._fusion(tsdf_input, tsdf_weights, values)
+
+        # reshaping target
+
+        # masking invalid losses
+        tsdf_est = fusion_output['tsdf_est']
+
+        values['points'] = values['points'][:, :, :self.config.MODEL.n_points].contiguous()
 
         update_values, update_indices, \
-        update_weights, update_points = self._prepare_volume_update(canonical_view,
+        update_weights, update_points = self._prepare_volume_update(values,
                                                                     tsdf_est,
-                                                                    frame)
+                                                                    filtered_frame)
 
-        values, weights = self._integrator.forward(update_values,
-                                                   update_indices,
-                                                   update_weights,
-                                                   entry['current'],
-                                                   entry['weights'])
+        values, weights = self._integrator.forward(update_values.to(device),
+                                                   update_indices.to(device),
+                                                   update_weights.to(device),
+                                                   database[
+                                                       batch['scene_id'][0]][
+                                                       'current'].to(device),
+                                                   database[
+                                                       batch['scene_id'][0]][
+                                                       'weights'].to(device))
 
-        return values, weights
+        database.scenes_est[
+            batch['scene_id'][0]].volume = values.cpu().detach().numpy()
+        database.fusion_weights[
+            batch['scene_id'][0]] = weights.cpu().detach().numpy()
 
-    def train(self, data, grid_est, grid_gt):
-        raise NotImplementedError
+        return
+
+    def fuse_training(self, batch, database, device):
+
+        """
+            Learned real-time depth map fusion pipeline
+
+            :param batch:
+            :param extractor:
+            :param routing_model:
+            :param tsdf_model:
+            :param database:
+            :param device:
+            :param config:
+            :param routing_config:
+            :param mode:
+            :return:
+            """
+        output = dict()
+
+        # routing
+        if self.config.ROUTING.do:
+            frame, confidence = self._routing(batch)
+        else:
+            frame = batch[self.config.DATA.input].squeeze_(1)
+            frame = frame.to(device)
+            confidence = None
+
+        mask = batch['original_mask'].to(device)
+        filtered_frame = torch.where(mask == 0, torch.zeros_like(frame), frame)
+
+        b, h, w = frame.shape
+
+        # get current tsdf values
+        scene_id = batch['scene_id'][0]
+        volume = database[scene_id]
+
+        values = self._extractor.forward(frame,
+                                         batch['extrinsics'],
+                                         batch['intrinsics'],
+                                         volume['current'],
+                                         volume['origin'],
+                                         volume['resolution'],
+                                         volume['weights'])
+
+        values_gt = self._extractor.forward(frame,
+                                         batch['extrinsics'],
+                                         batch['intrinsics'],
+                                         volume['gt'],
+                                         volume['origin'],
+                                         volume['resolution'],
+                                         volume['weights'])
+
+
+        tsdf_input, tsdf_weights = self._prepare_fusion_input(frame, values, confidence)
+
+        tsdf_target = values_gt['fusion_values']
+        tsdf_target = tsdf_target.view(b, h, w, self.config.MODEL.n_points)
+
+        fusion_output = self._fusion(tsdf_input, tsdf_weights, values)
+
+        # reshaping target
+        tsdf_target = tsdf_target.view(b, h * w, self.config.MODEL.n_points)
+
+        # masking invalid losses
+        tsdf_est = fusion_output['tsdf_est']
+        tsdf_fused = fusion_output['tsdf_fused']
+
+        tsdf_fused = masking(tsdf_fused, filtered_frame.view(b, h * w, 1))
+        tsdf_target = masking(tsdf_target, filtered_frame.view(b, h * w, 1))
+
+        #values['gt'] = values['gt'][:, :, :self.config.MODEL.n_points].contiguous()
+        values['points'] = values['points'][:, :, :self.config.MODEL.n_points].contiguous()
+
+        update_values, update_indices, \
+        update_weights, update_points = self._prepare_volume_update(values,
+                                                                    tsdf_est,
+                                                                    filtered_frame)
+
+        values, weights = self._integrator.forward(update_values.to(device),
+                                                   update_indices.to(device),
+                                                   update_weights.to(device),
+                                                   database[batch['scene_id'][0]][
+                                                       'current'].to(device),
+                                                   database[batch['scene_id'][0]][
+                                                         'weights'].to(device))
+
+        database.scenes_est[
+            batch['scene_id'][0]].volume = values.cpu().detach().numpy()
+        database.fusion_weights[
+            batch['scene_id'][0]] = weights.cpu().detach().numpy()
+
+        output['tsdf_est'] = fusion_output['tsdf_est']
+        output['tsdf_fused'] = tsdf_fused
+        output['tsdf_target'] = tsdf_target
+
+        del update_values, update_points, update_indices, update_weights, values
+        return output
+
+
+def masking(x, values, threshold=0., option='ueq'):
+
+    if option == 'leq':
+
+        if x.dim() == 2:
+            valid = (values <= threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid]
+        if x.dim() == 3:
+            valid = (values <= threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid, :]
+
+    if option == 'geq':
+
+        if x.dim() == 2:
+            valid = (values >= threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid]
+        if x.dim() == 3:
+            valid = (values >= threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid, :]
+
+    if option == 'eq':
+
+        if x.dim() == 2:
+            valid = (values == threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid]
+        if x.dim() == 3:
+            valid = (values == threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid, :]
+
+    if option == 'ueq':
+
+        if x.dim() == 2:
+            valid = (values != threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid]
+        if x.dim() == 3:
+            valid = (values != threshold)[0, :, 0]
+            xvalid = valid.nonzero()[:, 0]
+            xmasked = x[:, xvalid, :]
+
+
+    return xmasked
