@@ -10,6 +10,7 @@ class FusionNet(nn.Module):
         super(FusionNet, self).__init__()
 
         self.uncertainty = config.uncertainty
+        self.scale = config.output_scale
 
         self.n_channels = 2 * config.n_points + 1 + int(config.confidence)
         self.n_points = config.n_points
@@ -100,7 +101,7 @@ class FusionNet(nn.Module):
         y = self.pred1.forward(x4)
         y = self.pred2.forward(y)
         y = self.pred3.forward(y)
-        y = self.pred4.forward(y)
+        y = self.scale * self.pred4.forward(y)
 
         del x1, x2, x3, x4
 

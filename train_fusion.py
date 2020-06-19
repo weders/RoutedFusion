@@ -30,10 +30,15 @@ def train_fusion(args):
 
     config.TIMESTAMP = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
+    # get workspace
+    workspace = get_workspace(config)
+
+    # save config before training
+    workspace.save_config(config)
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     config.MODEL.device = device
 
-    workspace = get_workspace(config)
 
     # get datasets
     # get train dataset
@@ -71,8 +76,8 @@ def train_fusion(args):
                                     weight_decay=config.OPTIMIZATION.weight_decay)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
-                                                step_size=100,
-                                                gamma=0.1)
+                                                step_size=config.OPTIMIZATION.scheduler.step_size,
+                                                gamma=config.OPTIMIZATION.scheduler.gamma)
 
     # define some parameters
     n_batches = float(len(train_dataset)/config.TRAINING.train_batch_size)
@@ -91,10 +96,6 @@ def train_fusion(args):
         val_database.reset()
 
         for i, batch in tqdm(enumerate(train_loader), total=len(train_dataset)):
-
-            scene_id = batch['scene_id'][0]
-
-            entry = train_database[scene_id]
 
             # put all data on GPU
             batch = transform.to_device(batch, device)
@@ -135,10 +136,6 @@ def train_fusion(args):
         # validation step - fusion
         for i, batch in tqdm(enumerate(val_loader), total=len(val_dataset)):
 
-            scene_id = batch['scene_id'][0]
-
-            entry = val_database[scene_id]
-
             # put all data on GPU
             batch = transform.to_device(batch, device)
 
@@ -152,9 +149,11 @@ def train_fusion(args):
         val_eval = val_database.evaluate()
 
         # check if current checkpoint is best
-        if val_eval['iou'] > best_iou:
+        if val_eval['iou'] >= best_iou:
             is_best = True
             best_iou = val_eval['iou']
+            workspace.log('found new best model with iou {} at epoch {}'.format(best_iou, epoch),
+                          mode='val')
         else:
             is_best = False
 

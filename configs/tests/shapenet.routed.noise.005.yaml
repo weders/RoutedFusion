@@ -1,0 +1,23 @@
+TEST:
+  name: shapenet_routed_noise_005
+SETTINGS:
+  data_path: /media/weders/HV620S/data/shape-net/processed
+DATA:
+  root_dir: /media/weders/HV620S/data/shape-net/processed
+  key: noisy_depth_octnetfusion
+  dataset: ShapeNet
+  test_scene_list: lists/shapenet/fusion/test.final.txt
+  resx: 320
+  resy: 240
+  noise: 0.001
+  noise_scale: 0.005
+  outlier_scale: 3
+  outlier_fraction: 0.99
+  grid_resolution: 128
+  init_value: 0.1
+TESTING:
+  prefix: configs/tests
+  tests:
+    - shapenet.all.noise.005.yaml
+  shuffle: False
+  batch_size: 1

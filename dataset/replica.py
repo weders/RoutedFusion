@@ -3,21 +3,13 @@ import glob
 import pyquaternion
 
 import numpy as np
-import pywavefront
 
 from skimage import io, transform
 from torch.utils.data import Dataset
-from copy import copy
 
 from graphics import Voxelgrid
 
 import h5py
-
-from time import sleep
-from weight_learning.utils import add_axial_noise, \
-    add_random_zeros, add_lateral_noise, add_outliers, add_kinect_noise
-from datasets.utils import read_dat_groundtruth, \
-    read_projections, read_camera_file
 
 
 class Replica(Dataset):

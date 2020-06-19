@@ -105,7 +105,9 @@ class Pipeline(torch.nn.Module):
         update_points = values['points'].cpu()[:, valid, :tail_points, :]
         update_values = est.cpu()[:, valid, :tail_points]
 
-        update_values = torch.clamp(update_values, -0.1, 0.1)
+        update_values = torch.clamp(update_values,
+                                    -self.config.DATA.init_value,
+                                    self.config.DATA.init_value)
 
         del valid
 

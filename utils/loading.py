@@ -75,6 +75,24 @@ def load_model(file, model):
         model.state_dict().update(pretrained_dict)
         model.load_state_dict(model.state_dict())
 
+def load_pipeline(file, model):
+
+    checkpoint = file
+
+    if not os.path.exists(checkpoint):
+        raise FileNotFoundError("File doesn't exist {}".format(checkpoint))
+    try:
+        if torch.cuda.is_available():
+            checkpoint = torch.load(checkpoint)
+        else:
+            checkpoint = torch.load(checkpoint, map_location=torch.device('cpu'))
+        model.load_state_dict(checkpoint['pipeline_state_dict'])
+    except:
+        print('loading model partly')
+        pretrained_dict = {k: v for k, v in checkpoint['pipeline_state_dict'].items() if k in model.state_dict()}
+        model.state_dict().update(pretrained_dict)
+        model.load_state_dict(model.state_dict())
+
 
 def load_checkpoint(checkpoint, model, optimizer=None):
     """Loads model parameters (state_dict) from file_path.

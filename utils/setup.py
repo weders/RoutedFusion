@@ -45,8 +45,6 @@ def get_database(dataset, config, mode='train'):
     database_config.transform = transform.ToTensor()
     database_config.scene_list = eval('config.DATA.{}_scene_list'.format(mode))
 
-    print(database_config.scene_list)
-
     return VolumeDB(dataset, database_config)
 
 
@@ -81,7 +79,6 @@ def get_logger(path, name='training'):
 
 
 def save_tsdf(filename, data):
-    print('just before saving', np.unique(data))
     with h5py.File(filename, 'w') as file:
         file.create_dataset('TSDF',
                             shape=data.shape,
@@ -108,6 +105,8 @@ class Workspace(object):
         os.makedirs(self.model_path)
         os.makedirs(self.log_path)
         os.makedirs(self.output_path)
+
+        self._init_logger()
 
     def _init_logger(self):
         self.train_logger = get_logger(self.log_path, 'training')

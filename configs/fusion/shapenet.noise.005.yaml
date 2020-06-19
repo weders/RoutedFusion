@@ -12,23 +12,27 @@ DATA:
   outlier_scale: 0.01
   outlier_fraction: 0.99
   grid_resolution: 128
-  train_scene_list: lists/shapenet/fusion/train.v2.txt
-  val_scene_list: lists/shapenet/fusion/train.v2.txt
+  train_scene_list: lists/shapenet/fusion/train.v1.txt
+  val_scene_list: lists/shapenet/fusion/val.v1.txt
   test_scene_list: lists/shapenet/routing/test.txt
   transform: ToTensor()
   init_value: 0.1
 ROUTING:
   do: False
 MODEL:
+  output_scale: 1.
   n_points: 9
   n_tail_points: 7
   uncertainty: False
   confidence: False
 LOSS:
   w_l1: 1.
-  w_l2: 0.
+  w_l2: 10.
   w_cos: 0.1
 OPTIMIZATION:
+  scheduler:
+    step_size: 2000
+    gamma: 0.1
   lr: 1.e-03
   rho: 0.95
   eps: 1.e-09
