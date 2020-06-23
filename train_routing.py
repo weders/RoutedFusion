@@ -31,8 +31,8 @@ def train(args, config):
 
     config.TIMESTAMP = datetime.datetime.now().strftime('%y%m%d-%H%M%S')
 
-
     workspace = get_workspace(config)
+    workspace.save_config(config)
 
     # get train dataset
     train_data_config = get_data_config(config, mode='train')
@@ -54,7 +54,7 @@ def train(args, config):
     model = model.to(device)
 
     # define loss function
-    criterion = RoutingLoss(config)
+    criterion = RoutingLoss(config.LOSS)
     criterion = criterion.to(device)
 
     # define optimizer

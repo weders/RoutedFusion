@@ -2,17 +2,12 @@ import os
 import glob
 
 import numpy as np
-import pywavefront
 
 from skimage import io, transform
 from torch.utils.data import Dataset
 from copy import copy
 
 from graphics import Voxelgrid
-import h5py
-
-# from graphics.utils import extract_mesh_marching_cubes
-# from graphics.visualization import plot_mesh, plot_voxelgrid
 
 from scipy.ndimage.morphology import binary_dilation
 
@@ -46,30 +41,26 @@ class ShapeNet(Dataset):
 
     def _load_frames(self):
 
-        if self.scene_list is None:
-            # scene, obj = self.scene.split('/')
-            path = os.path.join(self.root_dir, self.obj, self.model, 'data', '*.depth.png')
-            files = glob.glob(path)
+        self.frames = []
+        self._scenes = []
 
-            self.frames = []
+        with open(self.scene_list, 'r') as file:
 
-            for f in files:
-                self.frames.append(f.replace('.depth.png', ''))
+            for line in file:
+                scene, obj = line.rstrip().split('\t')
 
-        else:
-            self.frames = []
+                self._scenes.append(os.path.join(scene, obj))
 
-            with open(self.scene_list, 'r') as file:
+                path = os.path.join(self.root_dir, scene, obj, 'data', '*.depth.png')
 
-                for line in file:
-                    scene, obj = line.rstrip().split('\t')
+                files = glob.glob(path)
 
-                    path = os.path.join(self.root_dir, scene, obj, 'data', '*.depth.png')
+                for f in files:
+                    self.frames.append(f.replace('.depth.png', ''))
 
-                    files = glob.glob(path)
-
-                    for f in files:
-                        self.frames.append(f.replace('.depth.png', ''))
+    @property
+    def scenes(self):
+        return self._scenes
 
     def __len__(self):
         return len(self.frames)
