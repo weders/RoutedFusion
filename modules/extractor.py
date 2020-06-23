@@ -1,4 +1,5 @@
 import torch
+import datetime
 from torch import nn
 from torch.nn.functional import normalize
 
@@ -33,10 +34,10 @@ class Extractor(nn.Module):
         :return: values/voxels of groundtruth and current as well as at its coordinates and indices
         '''
 
-        tsdf_volume = tsdf_volume.double()
+        tsdf_volume = tsdf_volume
 
-        intrinsics = intrinsics.double()
-        extrinsics = extrinsics.double()
+        intrinsics = intrinsics.float()
+        extrinsics = extrinsics.float()
 
         if torch.cuda.is_available():
             intrinsics = intrinsics.cuda()
@@ -46,21 +47,16 @@ class Extractor(nn.Module):
             weights_volume = weights_volume.cuda()
             origin = origin.cuda()
 
-        depth = depth.double()
-
         b, h, w = depth.shape
 
         self.depth = depth.contiguous().view(b, h*w)
 
         coords = self.compute_coordinates(depth, extrinsics, intrinsics, origin, resolution)
 
-
         # compute rays
         eye_w = extrinsics[:, :3, 3]
 
         ray_pts, ray_dists = self.extract_values(coords, eye_w, origin, resolution, n_points=int((self.n_points - 1)/2))
-        ray_voxels, _, borders = self.extract_rays(coords, eye_w, origin, resolution)
-
 
         fusion_values, indices, weights, fusion_weights = trilinear_interpolation(ray_pts, tsdf_volume, weights_volume)
 
@@ -89,7 +85,8 @@ class Extractor(nn.Module):
         n_points = h*w
 
         # generate frame meshgrid
-        xx, yy = torch.meshgrid([torch.arange(h, dtype=torch.double), torch.arange(w, dtype=torch.double)])
+        xx, yy = torch.meshgrid([torch.arange(h, dtype=torch.float),
+                                 torch.arange(w, dtype=torch.float)])
 
         if torch.cuda.is_available():
             xx = xx.cuda()
@@ -104,9 +101,9 @@ class Extractor(nn.Module):
         points_p = torch.cat((yy, xx, zz), dim=2).clone()
 
         # invert
-        intrinsics_inv = intrinsics.inverse()
+        intrinsics_inv = intrinsics.inverse().float()
 
-        homogenuous = torch.ones((b, 1, n_points)).double()
+        homogenuous = torch.ones((b, 1, n_points))
 
         if torch.cuda.is_available():
             homogenuous = homogenuous.cuda()
@@ -119,19 +116,10 @@ class Extractor(nn.Module):
         points_w = torch.matmul(extrinsics[:3], points_c)
         points_w = torch.transpose(points_w, dim0=1, dim1=2)[:, :, :3]
 
-        if self.mode == 'blocks':
-            points_v = points_w - origin
+        del xx, yy, homogenuous, points_p, points_c, intrinsics_inv
+        return points_w
 
-            # transform to voxel coordinates
-            coords_v = torch.floor(points_v/resolution).int()
 
-            return coords_v
-        elif self.mode == 'ray' or self.mode == 'voxel':
-            del xx, yy, homogenuous, points_p, points_c, intrinsics_inv
-            return points_w
-
-        else:
-            raise ValueError('unknown mode {}'.format(self.mode))
 
     def extract_fusion_weights(self, coords, eye, origin, resolution, volume):
 
@@ -336,48 +324,11 @@ class Extractor(nn.Module):
         dist = torch.zeros_like(center_v)[:, :, 0]
         dists = [dist]
 
-        if ellipsoid:
-            xp1 = torch.ones_like(direction)[:, :, 0]
-            yp1 = torch.ones_like(direction)[:, :, 0]
-            zp1 = (-torch.mul(xp1, direction[:, :, 0]) - torch.mul(yp1, direction[:, :, 1]))/direction[:, :, 2]
-
-            perp1 = torch.stack((xp1, yp1, zp1), dim=2)
-            perp1 = normalize(perp1, p=2, dim=2)
-            perp2 = torch.cross(direction, perp1)
-            perp2 = normalize(perp2, p=2, dim=2)
-
-            for i in range(1, 2):
-
-                p1 = points[0] + i*bin_size*perp1
-                p1N = points[0] - i*bin_size*perp1
-
-                p2 = points[0] + i * bin_size * perp2
-                p2N = points[0] - i * bin_size * perp2
-
-                ellip.append(p1.clone())
-                ellip.append(p1N.clone())
-                ellip.append(p2.clone())
-                ellip.append(p2N.clone())
-
         for i in range(1, n_points+1):
             point = center_v + i*bin_size*direction
             pointN = center_v - i*bin_size*direction
             points.append(point.clone())
             points.insert(0, pointN.clone())
-
-            if i <= 1 and ellipsoid:
-                for j in range(1, 2):
-                    p1 = point + j * bin_size * perp1
-                    p1N = pointN - j * bin_size * perp1
-
-                    p2 = point + j * bin_size * perp2
-                    p2N = pointN - j * bin_size * perp2
-
-                    ellip.append(p1.clone())
-                    ellip.append(p1N.clone())
-                    ellip.append(p2.clone())
-                    ellip.append(p2N.clone())
-
 
             dist = i*bin_size*torch.ones_like(point)[:, :, 0]
             distN = -1.*dist

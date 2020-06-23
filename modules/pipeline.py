@@ -1,4 +1,5 @@
 import torch
+import datetime
 
 from modules.routing import ConfidenceRouting
 from modules.extractor import Extractor
@@ -102,10 +103,10 @@ class Pipeline(torch.nn.Module):
         valid = (depth != 0.)
         valid = valid.nonzero()[:, 1]
 
-        update_indices = values['indices'].cpu()[:, valid, :tail_points, :, :]
-        update_weights = values['weights'].cpu()[:, valid, :tail_points, :]
-        update_points = values['points'].cpu()[:, valid, :tail_points, :]
-        update_values = est.cpu()[:, valid, :tail_points]
+        update_indices = values['indices'][:, valid, :tail_points, :, :]
+        update_weights = values['weights'][:, valid, :tail_points, :]
+        update_points = values['points'][:, valid, :tail_points, :]
+        update_values = est[:, valid, :tail_points]
 
         update_values = torch.clamp(update_values,
                                     -self.config.DATA.init_value,
@@ -144,11 +145,15 @@ class Pipeline(torch.nn.Module):
                                          volume['resolution'],
                                          volume['weights'])
 
+
         tsdf_input, tsdf_weights = self._prepare_fusion_input(frame, values,
                                                               confidence)
 
 
+
         fusion_output = self._fusion(tsdf_input, tsdf_weights, values)
+
+
 
         # reshaping target
 
@@ -171,6 +176,7 @@ class Pipeline(torch.nn.Module):
                                                    database[
                                                        batch['scene_id'][0]][
                                                        'weights'].to(device))
+
 
         database.scenes_est[
             batch['scene_id'][0]].volume = values.cpu().detach().numpy()
@@ -213,6 +219,7 @@ class Pipeline(torch.nn.Module):
         # get current tsdf values
         scene_id = batch['scene_id'][0]
         volume = database[scene_id]
+
 
         values = self._extractor.forward(frame,
                                          batch['extrinsics'],
