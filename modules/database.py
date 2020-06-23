@@ -23,112 +23,18 @@ class Database(Dataset):
         self.fusion_weights = {}
         self.counts = {}
 
-        # load voxelgrids and initialize estimated scenes
-        if config.scene_list is not None and dataset.__class__.__name__ != 'ModelNet':
-            with open(config.scene_list, 'r') as file:
-                scenes = file.readlines()
-                for scene in scenes:
-                    scene, room = scene.rstrip().split('\t')
-                    scene_id = os.path.join(scene, room)
-                    self.scenes_gt[scene_id] = dataset.get_grid(scene_id)
-                    self.scenes_est[scene_id] = Voxelgrid(self.scenes_gt[scene_id].resolution)
-                    self.scenes_est[scene_id].from_array(self.scenes_gt[scene_id].volume,
-                                                          self.scenes_gt[scene_id].bbox,)
-                    self.fusion_weights[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
-                    self.counts[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
+        for s in dataset.scenes:
 
-        elif dataset.__class__.__name__ == 'Scene3D':
-            scene = dataset.scene
-            for sp in range(len(dataset.grids)):
-                scene_id = '{}.{}'.format(scene, sp)
-                self.scenes_gt[scene_id] = dataset.get_grid(sp)
-                self.scenes_est[scene_id] = Voxelgrid(self.scenes_gt[scene_id].resolution)
-                self.scenes_est[scene_id].from_array(self.scenes_gt[scene_id].volume, self.scenes_gt[scene_id].bbox)
-                self.fusion_weights[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
-                self.counts[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
+            grid = dataset.get_grid(s)
 
-        elif dataset.__class__.__name__ == 'Freiburg':
+            self.scenes_gt[s] = grid
 
-            self.scenes_gt['office'] = dataset.get_grid()
-            self.scenes_est['office'] = Voxelgrid(
-                self.scenes_gt['office'].resolution)
-            self.scenes_est['office'].from_array(
-                self.scenes_gt['office'].volume,
-                self.scenes_gt['office'].bbox, )
-            self.fusion_weights['office'] = np.zeros(
-                self.scenes_gt['office'].volume.shape)
-            self.counts['office'] = np.zeros(
-                self.scenes_gt['office'].volume.shape)
+            init_volume = self.initial_value * np.ones_like(grid.volume)
 
-        elif dataset.__class__.__name__ == 'RoadSign':
-
-            self.scenes_gt['roadsign'] = dataset.get_grid()
-            self.scenes_est['roadsign'] = Voxelgrid(
-                self.scenes_gt['roadsign'].resolution)
-            self.scenes_est['roadsign'].from_array(
-                self.scenes_gt['roadsign'].volume,
-                self.scenes_gt['roadsign'].bbox, )
-            self.fusion_weights['roadsign'] = np.zeros(
-                self.scenes_gt['roadsign'].volume.shape)
-            self.counts['roadsign'] = np.zeros(
-                self.scenes_gt['roadsign'].volume.shape)
-
-        elif dataset.__class__.__name__ == 'Microsoft':
-
-            if dataset._config.scene_list is None:
-                scene = dataset._scene
-                if dataset.split:
-                    for sp in range(len(dataset.grids)):
-                        scene_id = '{}.{}'.format(scene, sp)
-                        self.scenes_gt[scene_id] = dataset.get_grid(sp)
-                        self.scenes_est[scene_id] = Voxelgrid(self.scenes_gt[scene_id].resolution)
-                        self.scenes_est[scene_id].from_array(self.scenes_gt[scene_id].volume, self.scenes_gt[scene_id].bbox)
-                        self.fusion_weights[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
-                        self.counts[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
-                else:
-                    self.scenes_gt[scene] = dataset.get_grid(scene)
-                    self.scenes_est[scene] = Voxelgrid(self.scenes_gt[scene].resolution)
-                    self.scenes_est[scene].from_array(self.scenes_gt[scene].volume, self.scenes_gt[scene].bbox)
-                    self.fusion_weights[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
-                    self.counts[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
-
-        elif dataset.__class__.__name__ == 'ETH3D':
-            scene = dataset._scene
-            for sp in range(len(dataset.grids)):
-                scene_id = '{}.{}'.format(scene, sp)
-                self.scenes_gt[scene_id] = dataset.get_grid(sp)
-                self.scenes_est[scene_id] = Voxelgrid(self.scenes_gt[scene_id].resolution)
-                self.scenes_est[scene_id].from_array(self.scenes_gt[scene_id].volume, self.scenes_gt[scene_id].bbox)
-                self.fusion_weights[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
-                self.counts[scene_id] = np.zeros(self.scenes_gt[scene_id].volume.shape)
-
-        elif dataset.__class__.__name__ == 'Matterport':
-            scene = dataset.scene
-            self.scenes_gt[scene] = dataset.get_grid()
-            self.scenes_est[scene] = Voxelgrid(self.scenes_gt[scene].resolution)
-            self.scenes_est[scene].from_array(self.scenes_gt[scene].volume, self.scenes_gt[scene].bbox)
-            self.fusion_weights[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
-            self.counts[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
-
-        elif dataset.__class__.__name__ == 'Replica':
-            scene = dataset.scene
-            self.scenes_gt[scene] = dataset.get_grid()
-            self.scenes_est[scene] = Voxelgrid(self.scenes_gt[scene].resolution)
-            self.scenes_est[scene].from_array(self.scenes_gt[scene].volume, self.scenes_gt[scene].bbox)
-            self.fusion_weights[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
-            self.counts[scene] = np.zeros(self.scenes_gt[scene].volume.shape)
-
-        elif dataset.__class__.__name__ == 'ModelNet':
-            with open(config.scene_list, 'r') as file:
-                scenes = file.readlines()
-            for scene in scenes:
-                key = scene.rstrip()
-                key = key.replace('\t', '/')
-                self.scenes_gt[key] = dataset.get_grid(key)
-                self.scenes_est[key] = Voxelgrid(self.scenes_gt[key].resolution)
-                self.scenes_est[key].from_array(self.scenes_gt[key].volume, self.scenes_gt[key].bbox)
-                self.fusion_weights[key] = np.zeros(self.scenes_gt[key].volume.shape)
-                self.counts[key] = np.zeros(self.scenes_gt[key].volume.shape)
+            self.scenes_est[s] = Voxelgrid(self.scenes_gt[s].resolution)
+            self.scenes_est[s].from_array(init_volume, self.scenes_gt[s].bbox)
+            self.fusion_weights[s] = np.zeros(self.scenes_gt[s].volume.shape)
+            self.counts[s] = np.zeros(self.scenes_gt[s].volume.shape)
 
         self.reset()
 
@@ -203,13 +109,17 @@ class Database(Dataset):
                                           scene_id].volume.shape,
                                       data=self.scenes_gt[scene_id].volume)
 
-    def evaluate(self):
+    def evaluate(self, mode='train', workspace=None):
 
         eval_results = {}
 
         for scene_id in self.scenes_est.keys():
 
-            print('Evaluating ', scene_id, '...')
+            if workspace is None:
+                print('Evaluating ', scene_id, '...')
+            else:
+                workspace.log('Evaluating {} ...'.format(scene_id),
+                              mode)
 
             weights = self.fusion_weights[scene_id]
             est = self.scenes_est[scene_id].volume
@@ -222,14 +132,16 @@ class Database(Dataset):
 
             for key in eval_results_scene.keys():
 
-                print(key, eval_results_scene[key])
+                if workspace is None:
+                    print(key, eval_results_scene[key])
+                else:
+                    workspace.log('{} {}'.format(key, eval_results_scene[key]),
+                                  mode)
 
                 if not eval_results.get(key):
                     eval_results[key] = eval_results_scene[key]
                 else:
                     eval_results[key] += eval_results_scene[key]
-
-
 
         # normalizing metrics
         for key in eval_results.keys():
