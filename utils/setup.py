@@ -5,7 +5,7 @@ import h5py
 import numpy as np
 from dataset import ShapeNet
 
-from modules.griddb import VolumeDB
+from modules.database import Database
 
 from utils import transform
 
@@ -45,7 +45,7 @@ def get_database(dataset, config, mode='train'):
     database_config.transform = transform.ToTensor()
     database_config.scene_list = eval('config.DATA.{}_scene_list'.format(mode))
 
-    return VolumeDB(dataset, database_config)
+    return Database(dataset, database_config)
 
 
 def get_workspace(config):

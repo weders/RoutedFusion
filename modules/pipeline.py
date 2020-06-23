@@ -47,11 +47,13 @@ class Pipeline(torch.nn.Module):
 
         # computing weighted updates for loss calculation
         tsdf_old = values['fusion_values']
-
+        tsdf_new = torch.clamp(tsdf_est,
+                               -self.config.DATA.init_value,
+                               self.config.DATA.init_value)
         weights = weights.view(b, h * w, self.config.MODEL.n_points)
         weights = torch.where(weights < 0, torch.zeros_like(weights), weights)
 
-        tsdf_fused = (weights * tsdf_old + tsdf_est) / (
+        tsdf_fused = (weights * tsdf_old + tsdf_new) / (
                     weights + torch.ones_like(weights))
 
         output['tsdf_est'] = tsdf_est

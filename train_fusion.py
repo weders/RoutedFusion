@@ -147,6 +147,7 @@ def train_fusion(args):
 
         val_database.filter()
         val_eval = val_database.evaluate()
+        print(val_eval)
 
         # check if current checkpoint is best
         if val_eval['iou'] >= best_iou:

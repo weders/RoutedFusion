@@ -69,10 +69,8 @@ def train(args, config):
     n_val_batches = int(len(val_dataset) / config.TRAINING.val_batch_size)
 
     # # define metrics
-    # metric_fns = get_metric_fns()
-    #
-    # train_metrics = get_metrics(metric_fns)
-    # val_metrics = get_metrics(metric_fns)
+    l1_criterion = torch.nn.L1Loss()
+    l2_criterion = torch.nn.MSELoss()
 
     for epoch in range(0, config.TRAINING.n_epochs):
 
@@ -109,8 +107,11 @@ def train(args, config):
                 optimizer.step()
                 optimizer.zero_grad()
 
-        val_loss = 0.
-        val_loss_best = 0.
+        val_loss_t = 0.
+        val_loss_l1 = 0.
+        val_loss_l2 = 0.
+
+        val_loss_best = np.infty
 
         for i, batch in enumerate(tqdm(val_loader, total=n_val_batches)):
 
@@ -139,23 +140,33 @@ def train(args, config):
             else:
                 gradient_mask = None
 
-            loss = criterion.forward(est, unc, target, gradient_mask)
-            val_loss += loss.item()
+            loss_t = criterion.forward(est, unc, target, gradient_mask)
+            loss_l1 = l1_criterion.forward(est, target)
+            loss_l2 = l2_criterion.forward(est, target)
 
-        val_loss /= n_val_batches
+            val_loss_t += loss_t.item()
+            val_loss_l1 += loss_l1.item()
+            val_loss_l2 += loss_l2.item()
+
+        val_loss_t /= n_val_batches
+        val_loss_l1 /= n_val_batches
+        val_loss_l2 /= n_val_batches
+
+        workspace.log('Epoch {} Loss {}'.format(epoch, val_loss_t))
+        workspace.log('Epoch {} L1 Loss {}'.format(epoch, val_loss_l1))
+        workspace.log('Epoch {} L2 Loss {}'.format(epoch, val_loss_l2))
 
         # define model state for storing
         model_state = {'epoch': epoch,
-                       'pipeline_state_dict': model.state_dict(),
+                       'state_dict': model.state_dict(),
                        'optim_dict': optimizer.state_dict()}
 
-        if val_loss_best <= val_loss:
-            val_loss_best = val_loss
-            workspace.log('Found new best model at epoch {}'.format(epoch), mode='val')
+        if val_loss_t <= val_loss_best:
+            val_loss_best = val_loss_t
+            workspace.log('Found new best model with loss {} at epoch {}'.format(val_loss_best, epoch), mode='val')
             workspace.save_model_state(model_state, is_best=True)
         else:
             workspace.save_model_state(model_state)
-            workspace.save_model_state()
 
 
 if __name__ == '__main__':
