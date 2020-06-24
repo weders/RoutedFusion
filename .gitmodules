@@ -7,3 +7,6 @@
 [submodule "deps/distance-transform"]
 	path = deps/distance-transform
 	url = git@github.com:weders/distance-transform.git
+[submodule "deps/mesh-fusion"]
+	path = deps/mesh-fusion
+	url = https://github.com/weders/mesh-fusion.git
