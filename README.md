@@ -1,6 +1,6 @@
 # RoutedFusion: Learning Real-time Depth Map Fusion
 
-This is the official implementation to the CVPR 2020 submission "RoutedFusion: Real-time Depth Map Fusion". 
+This is the official and improved implementation of the CVPR 2020 submission "RoutedFusion: Real-time Depth Map Fusion". 
 
 RoutedFusion is a real-time capable depth map fusion method that leverages machine learning for fusing noisy and outlier-contaminated depth maps. It consists of two neural networks components: 1) the depth routing network that performs a 2D prepocessing of the depth maps estimating a de-noised depth map as well as corresponding confidence map. 2) a depth fusion network that predicts optimal updates to the scene representation given a canonical view of the current state of the scene representation as well as the new measurement and confidence map.
 
