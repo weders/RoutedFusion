@@ -14,15 +14,17 @@ MODEL:
   residual: True
 LOSS:
   name: combined
+  lambda_unc: 0.03
   crop_fraction: 0.
   vmin: 0.
   vmax: 10.
-  weight_scale: 10.
+  weight_scale: 1.
+  limit: 10.
 TRAINING:
-  train_batch_size: 4
+  train_batch_size: 2
   train_shuffle: True
-  val_batch_size: 4
-  val_shuffle: False
+  val_batch_size: 2
+  val_shuffle: True
   n_epochs: 1000
 OPTIMIZATION:
   lr: 1.e-05
@@ -31,7 +33,7 @@ OPTIMIZATION:
   momentum: 0.9
   weight_decay: 0.01
   accumulate: True
-  accumulation_steps: 8
+  accumulation_steps: 16
   alternate: False
   alternate_steps: 5
 DATA:

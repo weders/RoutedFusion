@@ -6,6 +6,7 @@ from modules.extractor import Extractor
 from modules.model import FusionNet
 from modules.integrator import Integrator
 
+
 class Pipeline(torch.nn.Module):
 
     def __init__(self, config):
