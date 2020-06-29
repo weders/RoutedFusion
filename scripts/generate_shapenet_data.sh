@@ -7,6 +7,11 @@ SOURCE_PATH=$1
 # path to save the processed data
 DEST_PATH=$2
 
+CODE_PATH=$(pwd)
+
+export PYTHONPATH=$CODE_PATH/deps/mesh-fusion/librender/:$PYTHONPATH
+export PYTHONPATH=$CODE_PATH/deps/mesh-fusion/libfusiongpu/:$PYTHONPATH
+
 # path to the mesh-fusion tool
 TOOL_PATH='deps/mesh-fusion'
 
@@ -19,20 +24,33 @@ scenes=()
 while read -r line; do
     reformatted=${line//$'\t'//}
     scenes+=("$reformatted")
-done < lists/shapenet/routing/train.txt
+done < lists/shapenet/fusion/train.txt
 while read -r line; do
     reformatted=${line//$'\t'//}
     scenes+=("$reformatted")
-done < lists/shapenet/routing/val.txt
+done < lists/shapenet/fusion/val.txt
 while read -r line; do
     reformatted=${line//$'\t'//}
     scenes+=("$reformatted")
-done < lists/shapenet/routing/test.txt
+done < lists/shapenet/fusion/test.txt
 
 
 # copying all scenes to destination
 for s in "${scenes[@]}"; do
-  cp -r $SOURCE_PATH/$s $DEST_PATH/$s
+
+  # go back to project directory
+  cd $CODE_PATH
+
+  # parse category and object number
+  cat="$(cut -d'/' -f1 <<< $s)"
+  obj="$(cut -d'/' -f2 <<< $s)"
+
+  # create destination path
+  mkdir $DEST_PATH/$cat/$obj
+
+  # copy object and corresponding material
+  cp $SOURCE_PATH/$cat/$obj/model.obj $DEST_PATH/$cat/$obj/model.obj
+  cp $SOURCE_PATH/$cat/$obj/model.mtl $DEST_PATH/$cat/$obj/model.mtl
 
   ID_PATH="$DEST_PATH/$s"
 
@@ -40,13 +58,12 @@ for s in "${scenes[@]}"; do
 
   mkdir -p "$ID_PATH/in"
 
-  if [ -d "$ID_PATH/voxels" ]; then
-      echo "$s already processed"
-      continue
-  fi
+#  if [ -d "$ID_PATH/voxels" ]; then
+#      echo "$s already processed"
+#      continue
+#  fi
 
   echo "Converting meshes to OFF"
-  echo "$ID_PATH/models/model_normalized.obj"
   meshlabserver -i $ID_PATH/model.obj -o $ID_PATH/in/model.off;
 
   python "$TOOL_PATH/1_scale.py" --in_dir="$ID_PATH/in" --out_dir="$ID_PATH/scaled"
