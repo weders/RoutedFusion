@@ -72,7 +72,13 @@ def train(args, config):
     l1_criterion = torch.nn.L1Loss()
     l2_criterion = torch.nn.MSELoss()
 
+    val_loss_best = np.infty
+
     for epoch in range(0, config.TRAINING.n_epochs):
+
+        val_loss_t = 0.
+        val_loss_l1 = 0.
+        val_loss_l2 = 0.
 
         for i, batch in enumerate(tqdm(train_loader, total=n_train_batches)):
 
@@ -106,12 +112,6 @@ def train(args, config):
             if i % config.OPTIMIZATION.accumulation_steps == 0:
                 optimizer.step()
                 optimizer.zero_grad()
-
-        val_loss_t = 0.
-        val_loss_l1 = 0.
-        val_loss_l2 = 0.
-
-        val_loss_best = np.infty
 
         for i, batch in enumerate(tqdm(val_loader, total=n_val_batches)):
 
@@ -162,7 +162,7 @@ def train(args, config):
                        'optim_dict': optimizer.state_dict()}
 
         if val_loss_t <= val_loss_best:
-            val_loss_best = val_loss_t
+            val_loss_best = copy(val_loss_t)
             workspace.log('Found new best model with loss {} at epoch {}'.format(val_loss_best, epoch), mode='val')
             workspace.save_model_state(model_state, is_best=True)
         else:
