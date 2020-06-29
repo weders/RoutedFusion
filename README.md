@@ -31,3 +31,18 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 
 ### Data Preparation
 The models are trained on the ShapeNet v1 dataset. Therefore, the data needs to be downloaded and perpared using mesh-fusion.
+
+**Prerequesites**
+1. Download ShapeNet v1 from www.shapenet.org and unzip files
+2. Download binvox from https://www.patrickmin.com/binvox/, adjust permissions and move it to /usr/bin/
+
+**Install Data Generation**
+
+Run the installation script *scripts/install_data_generation.sh*
+
+**Generate Shapenet Data**
+
+Run the data generation script *scripts/generate_shapenet_data.sh*
+<pre><code>bash scripts/generate_shapenet_data.sh $PATH_TO_SHAPENET $PATH_TO_GENERATE_TO
+</code></pre>
+
