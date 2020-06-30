@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM nvidia/cuda:10.2-devel
 
 # Updating Ubuntu packages
 RUN apt-get update && yes|apt-get upgrade
