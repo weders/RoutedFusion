@@ -22,7 +22,7 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 </code></pre>
 
 **Start and enter the container from the image**
-<pre><code>docker run -t routed-fusion:latest /bin/bash
+<pre><code>docker run -it routed-fusion:latest /bin/bash
 </code></pre>
 
 **Alternatively, create the Anaconda environment**
