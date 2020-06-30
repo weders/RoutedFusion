@@ -95,7 +95,7 @@ def train(args, config):
             est = output[:, 0, :, :].unsqueeze_(1)
             unc = output[:, 1, :, :].unsqueeze_(1)
 
-            if config.DATA.dataset == 'modelnet' or config.DATA.dataset == 'shapenet':
+            if config.DATA.dataset == 'ModelNet' or config.DATA.dataset == 'ShapeNet':
                 mask = batch['mask'].to(device).unsqueeze_(1)
                 gradient_mask = batch['gradient_mask'].to(device).unsqueeze_(1)
 
@@ -128,7 +128,7 @@ def train(args, config):
             est = output[:, 0, :, :].unsqueeze_(1)
             unc = output[:, 1, :, :].unsqueeze_(1)
 
-            if config.DATA.dataset == 'modelnet' or config.DATA.dataset == 'shapenet':
+            if config.DATA.dataset == 'ModelNet' or config.DATA.dataset == 'ShapeNet':
                 mask = batch['mask'].to(device).unsqueeze_(1)
                 gradient_mask = batch['gradient_mask'].to(device).unsqueeze_(1)
 
