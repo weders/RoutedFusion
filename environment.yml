@@ -106,5 +106,6 @@ dependencies:
     - traits==6.0.0
     - traitsui==6.1.3
     - vtk==8.1.2
+    - connected-components-3d
 prefix: /home/weders/anaconda3/envs/routed-fusion
 
