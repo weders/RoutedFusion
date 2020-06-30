@@ -162,6 +162,7 @@ class ShapeNet(Dataset):
 
         grid.from_array(volume.data.astype(np.int), bbox)
         grid.transform()
+        grid.volume *= resolution
 
         return grid
 
