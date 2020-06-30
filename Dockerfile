@@ -25,19 +25,20 @@ RUN conda update --all
 
 # install build essentials
 RUN apt-get -y install build-essential
-
-# install vtk
-RUN apt-get update -y
-#RUN apt-get install -y libvtk7-dev
+RUN apt-get -y update
 
 # copy RoutedFusion into image
 COPY . /app
 WORKDIR /app
 
 ## create anaconda environment
-#RUN conda env create -f environment.yml
+#RUN apt-get install -y mayavi2
+RUN conda env create -f environment.yml
 #
-#RUN echo "source activate routed-fusion" > ~/.bashrc
-#ENV PATH /root/anaconda3/envs/routed-fusion/bin:$PATH
+RUN echo "source activate routed-fusion" > ~/.bashrc
+ENV PATH /root/anaconda3/envs/routed-fusion/bin:$PATH
 #
-#RUN chmod +x /root/anaconda3/envs/routed-fusion/bin
+RUN chmod +x /root/anaconda3/envs/routed-fusion/bin
+
+# install all dependencies
+RUN bash scripts/install_docker.sh
