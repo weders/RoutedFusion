@@ -58,9 +58,6 @@ def train_fusion(args):
     train_database = get_database(train_dataset, config, mode='train')
     val_database = get_database(val_dataset, config, mode='val')
 
-    train_database.to_tsdf()
-    val_database.to_tsdf()
-
     # setup pipeline
     pipeline = Pipeline(config)
     pipeline = pipeline.to(device)

@@ -53,7 +53,6 @@ def test_fusion(args, model_config, test_config):
 
     # get test database
     database = setup.get_database(dataset, test_config, mode='test')
-    database.to_tsdf()
 
     # setup pipeline
     pipeline = Pipeline(model_config)

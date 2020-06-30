@@ -154,9 +154,9 @@ class Database(Dataset):
             self.scenes_est[scene_id].volume = self.initial_value * np.ones(self.scenes_est[scene_id].volume.shape)
             self.fusion_weights[scene_id] = np.zeros(self.scenes_est[scene_id].volume.shape)
 
-    def to_tsdf(self, mode='normal', truncation=1.2):
-        for scene_id in self.scenes_gt.keys():
-            self.scenes_gt[scene_id].transform(mode='normal')
-            self.scenes_gt[scene_id].volume *= self.scenes_gt[scene_id].resolution
-            if mode == 'truncate':
-                self.scenes_gt[scene_id].volume[np.abs(self.scenes_gt[scene_id].volume) > truncation] = self.initial_value
+    # def to_tsdf(self, mode='normal', truncation=1.2):
+    #     for scene_id in self.scenes_gt.keys():
+    #         self.scenes_gt[scene_id].transform(mode='normal')
+    #         self.scenes_gt[scene_id].volume *= self.scenes_gt[scene_id].resolution
+    #         if mode == 'truncate':
+    #             self.scenes_gt[scene_id].volume[np.abs(self.scenes_gt[scene_id].volume) > truncation] = self.initial_value

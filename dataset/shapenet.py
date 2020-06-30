@@ -161,6 +161,7 @@ class ShapeNet(Dataset):
         bbox[:, 1] = bbox[:, 0] + resolution * volume.dims[0]
 
         grid.from_array(volume.data.astype(np.int), bbox)
+        grid.transform()
 
         return grid
 
