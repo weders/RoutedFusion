@@ -6,7 +6,13 @@ RoutedFusion is a real-time capable depth map fusion method that leverages machi
 
 ## Usage
 
-Below you find instructions on how to use RoutedFusion as a standalone depth map fusion pipeline for testing and evaluation. Training code and a plug-in to SLAM pipelines will follow.
+Below you find instructions on how to use RoutedFusion as a standalone depth map fusion pipeline for training and evaluation.
+
+### Prerequisites
+For using RoutedFusion, you need to have the following installed on you machine:
+
+1. docker
+2. nvidia-docker
 
 ### Installation
 
@@ -32,7 +38,7 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 ### Data Preparation
 The models are trained on the ShapeNet v1 dataset. Therefore, the data needs to be downloaded and perpared using mesh-fusion.
 
-**Prerequesites**
+**Prerequisites**
 1. Download ShapeNet v1 from www.shapenet.org and unzip files
 2. Download binvox from https://www.patrickmin.com/binvox/, adjust permissions and move it to /usr/bin/
 
