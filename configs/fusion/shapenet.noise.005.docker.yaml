@@ -1,0 +1,51 @@
+SETTINGS:
+  gpu: True
+  experiment_path: /home/weders/projects/001-real-time-depth-map-fusion/experiments
+DATA:
+  root_dir: /media/weders/HV620S/data/shape-net/processed
+  dataset: ShapeNet
+  input: noisy_depth_octnetfusion
+  target: depth
+  resx: 320
+  resy: 240
+  noise_scale: 0.005
+  outlier_scale: 0.01
+  outlier_fraction: 0.99
+  grid_resolution: 128
+  train_scene_list: lists/shapenet/fusion/train.txt
+  val_scene_list: lists/shapenet/fusion/val.txt
+  test_scene_list: lists/shapenet/routing/test.txt
+  transform: ToTensor()
+  init_value: 0.03
+ROUTING:
+  do: False
+MODEL:
+  output_scale: 1.
+  n_points: 9
+  n_tail_points: 7
+  uncertainty: False
+  confidence: False
+LOSS:
+  w_l1: 1.
+  w_l2: 10.
+  w_cos: 0.1
+OPTIMIZATION:
+  scheduler:
+    step_size: 5000
+    gamma: 0.1
+  lr: 1.e-04
+  rho: 0.95
+  eps: 1.e-09
+  momentum: 0.9
+  weight_decay: 0.01
+  accumulate: True
+  accumulation_steps: 8
+  alternate: False
+  alternate_steps: 5
+TRAINING:
+  train_batch_size: 1
+  train_shuffle: True
+  val_batch_size: 1
+  val_shuffle: True
+  n_epochs: 1000
+  clipping: True
