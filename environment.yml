@@ -99,7 +99,6 @@ dependencies:
     - imageio==2.8.0
     - importlib-metadata==1.7.0
     - markdown==3.2.2
-    - mayavi==4.7.1
     - networkx==2.4
     - oauthlib==3.1.0
     - opencv-python==4.2.0.34
