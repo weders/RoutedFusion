@@ -25,7 +25,7 @@ class Database(Dataset):
 
         for s in dataset.scenes:
 
-            grid = dataset.get_grid(s)
+            grid = dataset.get_grid(s, truncation=self.initial_value)
 
             self.scenes_gt[s] = grid
 

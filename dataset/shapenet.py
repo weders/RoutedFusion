@@ -136,7 +136,7 @@ class ShapeNet(Dataset):
 
         return sample
 
-    def get_grid(self, scene):
+    def get_grid(self, scene, truncation=None):
 
         sc, obj = scene.split('/')
 
@@ -163,6 +163,9 @@ class ShapeNet(Dataset):
         grid.from_array(volume.data.astype(np.int), bbox)
         grid.transform()
         grid.volume *= resolution
+
+        if truncation is not None:
+            grid.volume[np.abs(grid.volume) >= truncation] = truncation
 
         return grid
 
