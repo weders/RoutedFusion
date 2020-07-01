@@ -5,13 +5,12 @@ import datetime
 from tqdm import tqdm
 
 from utils.setup import *
-from utils.loading import load_config_from_yaml
+from utils.loading import *
 from utils.loss import FusionLoss
 
 from modules.model import FusionNet
 from modules.routing import ConfidenceRouting
 from modules.pipeline import Pipeline
-
 
 def arg_parser():
 
@@ -19,6 +18,7 @@ def arg_parser():
 
     parser.add_argument('--config')
     parser.add_argument('--experiment')
+    parser.add_argument('--routing-model')
 
     args = parser.parse_args()
     return vars(args)
@@ -64,6 +64,12 @@ def train_fusion(args):
 
     # optimization
     criterion = FusionLoss(config)
+
+    # load pretrained routing model into parameters
+    if config.ROUTING.do:
+        assert args['routing_model'] is not None
+        routing_checkpoint = os.path.join(args['routing_model'], 'best.pth.tar')
+        load_model(routing_checkpoint, pipeline._routing_network)
 
     optimizer = torch.optim.RMSprop(pipeline._fusion_network.parameters(),
                                     config.OPTIMIZATION.lr,

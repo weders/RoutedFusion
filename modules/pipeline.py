@@ -27,6 +27,7 @@ class Pipeline(torch.nn.Module):
     def _routing(self, data):
 
         inputs = data[self.config.DATA.input]
+        inputs = inputs.to(self.device)
         # inputs = inputs.to(device)
         inputs = inputs.unsqueeze_(1)  # add number of channels
         est = self._routing_network.forward(inputs)
@@ -122,9 +123,12 @@ class Pipeline(torch.nn.Module):
              database,
              device):
 
+        self.device = device
+
         # routing
         if self.config.ROUTING.do:
             frame, confidence = self._routing(batch)
+            frame[confidence < self.config.ROUTING.threshold] = 0
         else:
             frame = batch[self.config.DATA.input].squeeze_(1)
             frame = frame.to(device)
@@ -204,9 +208,21 @@ class Pipeline(torch.nn.Module):
             """
         output = dict()
 
+        self.device = device
+
         # routing
         if self.config.ROUTING.do:
-            frame, confidence = self._routing(batch)
+            with torch.no_grad():
+                frame, confidence = self._routing(batch)
+
+            # stopping gradient flow
+            frame = frame.cpu().detach()
+            confidence = confidence.cpu().detach()
+            frame = frame.to(device)
+            confidence = confidence.to(device)
+
+            frame[confidence < self.config.ROUTING.threshold] = 0
+
         else:
             frame = batch[self.config.DATA.input].squeeze_(1)
             frame = frame.to(device)
