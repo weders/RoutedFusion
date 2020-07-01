@@ -70,6 +70,9 @@ def train(args, config):
     n_train_batches = int(len(train_dataset) / config.TRAINING.train_batch_size)
     n_val_batches = int(len(val_dataset) / config.TRAINING.val_batch_size)
 
+    # sample validation visualization frames
+    val_vis_ids = np.random.choice(np.arange(0, n_val_batches), 10, replace=False)
+
     # # define metrics
     l1_criterion = torch.nn.L1Loss()
     l2_criterion = torch.nn.MSELoss()
@@ -137,13 +140,13 @@ def train(args, config):
         train_loss_l2 /= n_train_batches
 
         # log training metrics
-        workspace.log('Epoch {} Loss {}'.format(epoch, val_loss_t))
-        workspace.log('Epoch {} L1 Loss {}'.format(epoch, val_loss_l1))
-        workspace.log('Epoch {} L2 Loss {}'.format(epoch, val_loss_l2))
+        workspace.log('Epoch {} Loss {}'.format(epoch, train_loss_t))
+        workspace.log('Epoch {} L1 Loss {}'.format(epoch, train_loss_l1))
+        workspace.log('Epoch {} L2 Loss {}'.format(epoch, train_loss_l2))
 
-        workspace.writer('Train/loss_t', train_loss_t, global_step=epoch)
-        workspace.writer('Train/loss_l1', train_loss_l1, global_step=epoch)
-        workspace.writer('Train/loss_l2', train_loss_l2, global_step=epoch)
+        workspace.writer.add_scalar('Train/loss_t', train_loss_t, global_step=epoch)
+        workspace.writer.add_scalar('Train/loss_l1', train_loss_l1, global_step=epoch)
+        workspace.writer.add_scalar('Train/loss_l2', train_loss_l2, global_step=epoch)
 
         model.eval()
 
@@ -161,6 +164,26 @@ def train(args, config):
 
             est = output[:, 0, :, :].unsqueeze_(1)
             unc = output[:, 1, :, :].unsqueeze_(1)
+
+            # visualize frames
+            if i in val_vis_ids:
+                # parse frames
+                frame_est = est[0, :, :, :].cpu().detach().numpy()
+                frame_inp = inputs[0, :, :, :].cpu().detach().numpy()
+                frame_gt = target[0, :, :, :].cpu().detach().numpy()
+                frame_unc = output[0, :, :, :].cpu().detach().numpy()
+                frame_conf = np.exp(-1. * frame_unc)
+                frame_l1 = np.abs(frame_est - frame_gt)
+                frame_inp_l1 = np.abs(frame_inp - frame_gt)
+
+                # write to logger
+                workspace.writer.add_image('Val/est_{}'.format(i), frame_est, global_step=epoch)
+                workspace.writer.add_image('Val/gt_{}'.format(i), frame_gt, global_step=epoch)
+                workspace.writer.add_image('Val/unc_{}'.format(i), frame_unc, global_step=epoch)
+                workspace.writer.add_image('Val/conf_{}'.format(i), frame_conf, global_step=epoch)
+                workspace.writer.add_image('Val/l1_{}'.format(i), frame_l1, global_step=epoch)
+                workspace.writer.add_image('Val/l1_inp_{}'.format(i), frame_inp_l1, global_step=epoch)
+
 
             if config.DATA.dataset == 'ModelNet' or config.DATA.dataset == 'ShapeNet':
                 mask = batch['mask'].to(device).unsqueeze_(1)
@@ -191,9 +214,9 @@ def train(args, config):
         workspace.log('Epoch {} L1 Loss {}'.format(epoch, val_loss_l1), mode='val')
         workspace.log('Epoch {} L2 Loss {}'.format(epoch, val_loss_l2), mode='val')
 
-        workspace.writer('Val/loss_t', val_loss_t, global_step=epoch)
-        workspace.writer('Val/loss_l1', val_loss_l1, global_step=epoch)
-        workspace.writer('Val/loss_l2', val_loss_l2, global_step=epoch)
+        workspace.writer.add_scalar('Val/loss_t', val_loss_t, global_step=epoch)
+        workspace.writer.add_scalar('Val/loss_l1', val_loss_l1, global_step=epoch)
+        workspace.writer.add_scalar('Val/loss_l2', val_loss_l2, global_step=epoch)
 
         # define model state for storing
         model_state = {'epoch': epoch,
