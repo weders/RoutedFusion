@@ -16,7 +16,7 @@ import torch
 #             'iou': iou,
 #             'acc': acc}
 
-def evaluation(est, gt, mask=None):
+def evaluation(est, gt, mask=None, value=0.03):
 
     est = torch.Tensor(est)
     gt = torch.Tensor(gt)
@@ -25,8 +25,8 @@ def evaluation(est, gt, mask=None):
     est[mask == 0.] = 0.
     gt[mask == 0.] = 0.
 
-    est = torch.clamp(est, -0.04, 0.04)
-    gt = torch.clamp(gt, -0.04, 0.04)
+    est = torch.clamp(est, -value, value)
+    gt = torch.clamp(gt, -value, value)
 
     mask[mask != 0] = 1.
 

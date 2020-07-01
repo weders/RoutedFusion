@@ -214,14 +214,7 @@ class Pipeline(torch.nn.Module):
         if self.config.ROUTING.do:
             with torch.no_grad():
                 frame, confidence = self._routing(batch)
-
-            # stopping gradient flow
-            frame = frame.cpu().detach()
-            confidence = confidence.cpu().detach()
-            frame = frame.to(device)
-            confidence = confidence.to(device)
-
-            frame[confidence < self.config.ROUTING.threshold] = 0
+            frame[confidence < self.config.ROUTING.threshold] = 0.
 
         else:
             frame = batch[self.config.DATA.input].squeeze_(1)
