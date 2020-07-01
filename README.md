@@ -4,6 +4,16 @@ This is the official and improved implementation of the CVPR 2020 submission "Ro
 
 RoutedFusion is a real-time capable depth map fusion method that leverages machine learning for fusing noisy and outlier-contaminated depth maps. It consists of two neural networks components: 1) the depth routing network that performs a 2D prepocessing of the depth maps estimating a de-noised depth map as well as corresponding confidence map. 2) a depth fusion network that predicts optimal updates to the scene representation given a canonical view of the current state of the scene representation as well as the new measurement and confidence map.
 
+If you find our code or paper useful, please consider citing
+
+    @InProceedings{Weder_2020_CVPR,
+      author = {Weder, Silvan and Schonberger, Johannes and Pollefeys, Marc and Oswald, Martin R.},
+      title = {RoutedFusion: Learning Real-Time Depth Map Fusion},
+      booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+      month = {June},
+      year = {2020}
+    }
+
 ## Usage
 
 Below you find instructions on how to use RoutedFusion as a standalone depth map fusion pipeline for training and evaluation.
@@ -60,8 +70,18 @@ Once you are in the docker container you can train RoutedFusion. First, you can 
 </code></pre>
 
 **Train Fusion Network**
+
+***without routing***
 <pre><code>python train_fusion.py --config configs/fusion/shapenet.noise.005.yaml
 </code></pre>
 
+***with routing***
+<pre><code>python train_fusion.py --config configs/fusion/shapenet.noise.005.yaml --routing-model $PATH_TO_YOUR_ROUTING_MODEL
+</code></pre>
 
+### Testing
+You can test RoutedFusion using either the pretrained models or your own model. Furthermore, you need to define a test config specifying the test data. 
+
+<pre><code>python test_fusion.py --experiment $PATH_TO_YOUR_EXPERIMENT --test configs/tests/shapenet.routed.noise.005.yaml
+</code></pre>
 
