@@ -129,7 +129,7 @@ def train_fusion(args):
         # zero out all grads
         optimizer.zero_grad()
 
-        train_database.filter()
+        train_database.filter(value=2.)
         train_eval = train_database.evaluate()
         train_database.save_to_workspace(workspace)
         print(train_eval)
@@ -148,7 +148,7 @@ def train_fusion(args):
             # fusion pipeline
             pipeline.fuse(batch, val_database, device)
 
-        val_database.filter()
+        val_database.filter(value=2.)
         val_eval = val_database.evaluate()
         print(val_eval)
 
