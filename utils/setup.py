@@ -1,8 +1,9 @@
 import torch
 import os
 import logging
+from dataset import ShapeNet
 
-from torch.utils.tensorboard.writer import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from modules.database import Database
 

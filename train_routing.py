@@ -2,6 +2,8 @@ import torch
 import argparse
 import datetime
 
+import numpy as np
+
 from tqdm import tqdm
 
 from utils.loading import load_config_from_yaml
@@ -80,6 +82,14 @@ def train(args, config):
         val_loss_l1 = 0.
         val_loss_l2 = 0.
 
+        train_loss_t = 0.
+        train_loss_l1 = 0.
+        train_loss_l2 = 0.
+
+        # make ready for training and clear optimizer
+        model.train()
+        optimizer.zero_grad()
+
         for i, batch in enumerate(tqdm(train_loader, total=n_train_batches)):
 
             inputs = batch[config.DATA.input]
@@ -106,12 +116,36 @@ def train(args, config):
             else:
                 gradient_mask = None
 
+            # compute training loss
             loss = criterion.forward(est, unc, target, gradient_mask)
             loss.backward()
+
+            # compute metrics for analysis
+            loss_l1 = l1_criterion.forward(est, target)
+            loss_l2 = l2_criterion.forward(est, target)
+
+            train_loss_t += loss.item()
+            train_loss_l1 += loss_l1.item()
+            train_loss_l2 += loss_l2.item()
 
             if i % config.OPTIMIZATION.accumulation_steps == 0:
                 optimizer.step()
                 optimizer.zero_grad()
+
+        train_loss_t /= n_train_batches
+        train_loss_l1 /= n_train_batches
+        train_loss_l2 /= n_train_batches
+
+        # log training metrics
+        workspace.log('Epoch {} Loss {}'.format(epoch, val_loss_t))
+        workspace.log('Epoch {} L1 Loss {}'.format(epoch, val_loss_l1))
+        workspace.log('Epoch {} L2 Loss {}'.format(epoch, val_loss_l2))
+
+        workspace.writer('Train/loss_t', train_loss_t, global_step=epoch)
+        workspace.writer('Train/loss_l1', train_loss_l1, global_step=epoch)
+        workspace.writer('Train/loss_l2', train_loss_l2, global_step=epoch)
+
+        model.eval()
 
         for i, batch in enumerate(tqdm(val_loader, total=n_val_batches)):
 
@@ -152,9 +186,14 @@ def train(args, config):
         val_loss_l1 /= n_val_batches
         val_loss_l2 /= n_val_batches
 
-        workspace.log('Epoch {} Loss {}'.format(epoch, val_loss_t))
-        workspace.log('Epoch {} L1 Loss {}'.format(epoch, val_loss_l1))
-        workspace.log('Epoch {} L2 Loss {}'.format(epoch, val_loss_l2))
+        # log validation metrics
+        workspace.log('Epoch {} Loss {}'.format(epoch, val_loss_t), mode='val')
+        workspace.log('Epoch {} L1 Loss {}'.format(epoch, val_loss_l1), mode='val')
+        workspace.log('Epoch {} L2 Loss {}'.format(epoch, val_loss_l2), mode='val')
+
+        workspace.writer('Val/loss_t', val_loss_t, global_step=epoch)
+        workspace.writer('Val/loss_l1', val_loss_l1, global_step=epoch)
+        workspace.writer('Val/loss_l2', val_loss_l2, global_step=epoch)
 
         # define model state for storing
         model_state = {'epoch': epoch,
