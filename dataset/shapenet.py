@@ -145,7 +145,7 @@ class ShapeNet(Dataset):
             filepath = os.path.join(self.root_dir, sc, obj, 'voxels', '*.binvox')
         else:
             filepath = os.path.join(self.root_dir, sc, obj, 'voxels', '*.{}.binvox'.format(self.grid_resolution))
-        print(filepath)
+
         filepath = glob.glob(filepath)[0]
 
         # filepath = os.path.join(self.root_dir, 'example', 'voxels', 'chair_0256.binvox')

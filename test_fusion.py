@@ -73,9 +73,12 @@ def test_fusion(args, model_config, test_config):
         # fusion pipeline
         pipeline.fuse(batch, database, device)
 
-    database.filter(value=3.)
+    database.filter(value=2.)
     test_eval = database.evaluate()
     print(test_eval)
+
+    for scene_id in database.scenes_est.keys():
+        database.save(output_dir, scene_id)
 
 
 if __name__ == '__main__':
