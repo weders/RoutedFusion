@@ -60,8 +60,18 @@ Once you are in the docker container you can train RoutedFusion. First, you can 
 </code></pre>
 
 **Train Fusion Network**
+
+***without routing***
 <pre><code>python train_fusion.py --config configs/fusion/shapenet.noise.005.yaml
 </code></pre>
 
+***with routing***
+<pre><code>python train_fusion.py --config configs/fusion/shapenet.noise.005.yaml --routing-model $PATH_TO_YOUR_ROUTING_MODEL
+</code></pre>
 
+### Testing
+You can test RoutedFusion using either the pretrained models or your own model. Furthermore, you need to define a test config specifying the test data. 
+
+<pre><code>python test_fusion.py --experiment $PATH_TO_YOUR_EXPERIMENT --test configs/tests/shapenet.routed.noise.005.yaml
+</code></pre>
 
