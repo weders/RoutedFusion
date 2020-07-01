@@ -1,9 +1,8 @@
 import torch
 import os
 import logging
-import h5py
-import numpy as np
-from dataset import ShapeNet
+
+from torch.utils.tensorboard.writer import SummaryWriter
 
 from modules.database import Database
 
@@ -104,6 +103,8 @@ class Workspace(object):
         os.makedirs(self.model_path)
         os.makedirs(self.log_path)
         os.makedirs(self.output_path)
+
+        self.writer = SummaryWriter(self.log_path)
 
         self._init_logger()
 
