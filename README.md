@@ -7,7 +7,7 @@ RoutedFusion is a real-time capable depth map fusion method that leverages machi
 If you find our code or paper useful, please consider citing
 
     @InProceedings{Weder_2020_CVPR,
-      author = {Weder, Silvan and Schonberger, Johannes and Pollefeys, Marc and Oswald, Martin R.},
+      author = {Weder, Silvan and Sch\"onberger, Johannes L. and Pollefeys, Marc and Oswald, Martin R.},
       title = {RoutedFusion: Learning Real-Time Depth Map Fusion},
       booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
       month = {June},
