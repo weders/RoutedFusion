@@ -62,6 +62,8 @@ def test_fusion(args, model_config, test_config):
     model_path = os.path.join(args['experiment'], 'model/best.pth.tar')
     loading.load_pipeline(model_path, pipeline)
 
+    pipeline.eval()
+
     for i, batch in tqdm(enumerate(loader), total=len(dataset)):
 
         # put all data on GPU

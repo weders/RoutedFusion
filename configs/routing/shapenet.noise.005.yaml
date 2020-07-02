@@ -1,7 +1,7 @@
 SETTINGS:
   machine: leonhard
   gpu: True
-  experiment_path: /home/weders/projects/001-real-time-depth-map-fusion/experiments/routing
+  experiment_path: experiments/routing
 RESUME:
   resume: False
   model: None
@@ -9,7 +9,7 @@ MODEL:
   contraction: 64
   depth: 1
   n_input_channels: 1
-  n_output_channels: 2
+  n_output_channels: 1
   normalization: False
   residual: True
 LOSS:
@@ -37,7 +37,7 @@ OPTIMIZATION:
   alternate: False
   alternate_steps: 5
 DATA:
-  root_dir: /media/weders/HV620S/data/shape-net/processed
+  root_dir: /data
   dataset: ShapeNet
   input: noisy_depth_octnetfusion
   target: depth

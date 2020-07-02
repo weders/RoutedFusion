@@ -1,8 +1,8 @@
 SETTINGS:
   gpu: True
-  experiment_path: /home/weders/projects/001-real-time-depth-map-fusion/experiments
+  experiment_path: /experiments
 DATA:
-  root_dir: /media/weders/HV620S/data/shape-net/processed
+  root_dir: /data
   dataset: ShapeNet
   input: noisy_depth_octnetfusion
   target: depth
@@ -16,13 +16,14 @@ DATA:
   val_scene_list: lists/shapenet/fusion/val.txt
   test_scene_list: lists/shapenet/routing/test.txt
   transform: ToTensor()
-  init_value: 0.03
+  init_value: 0.1
 ROUTING:
   do: False
+  threshold: 0.9
 MODEL:
   output_scale: 1.
   n_points: 9
-  n_tail_points: 7
+  n_tail_points: 9
   uncertainty: False
   confidence: False
 LOSS:
