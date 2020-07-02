@@ -134,7 +134,7 @@ class Pipeline(torch.nn.Module):
             frame = frame.to(device)
             confidence = None
 
-        mask = batch['original_mask'].to(device)
+        mask = batch['mask'].to(device)
         filtered_frame = torch.where(mask == 0, torch.zeros_like(frame),
                                      frame)
 
@@ -221,7 +221,7 @@ class Pipeline(torch.nn.Module):
             frame = frame.to(device)
             confidence = None
 
-        mask = batch['original_mask'].to(device)
+        mask = batch['mask'].to(device)
         filtered_frame = torch.where(mask == 0, torch.zeros_like(frame), frame)
 
         b, h, w = frame.shape

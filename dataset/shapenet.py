@@ -98,10 +98,10 @@ class ShapeNet(Dataset):
         mask = copy(depth)
         mask[mask == np.max(depth)] = 0
         mask[mask != 0] = 1
-        sample['original_mask'] = copy(mask)
+        sample['mask'] = copy(mask)
         gradient_mask = binary_dilation(mask, iterations=5)
         mask = binary_dilation(mask, iterations=8)
-        sample['mask'] = mask
+        sample['routing_mask'] = mask
         sample['gradient_mask'] = gradient_mask
 
         depth[mask == 0] = 0

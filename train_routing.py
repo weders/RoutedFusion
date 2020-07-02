@@ -109,7 +109,7 @@ def train(args, config):
             unc = output[:, 1, :, :].unsqueeze_(1)
 
             if config.DATA.dataset == 'ModelNet' or config.DATA.dataset == 'ShapeNet':
-                mask = batch['mask'].to(device).unsqueeze_(1)
+                mask = batch['routing_mask'].to(device).unsqueeze_(1)
                 gradient_mask = batch['gradient_mask'].to(device).unsqueeze_(1)
 
                 est = torch.where(mask == 0., torch.zeros_like(est), est)
@@ -186,7 +186,7 @@ def train(args, config):
 
 
             if config.DATA.dataset == 'ModelNet' or config.DATA.dataset == 'ShapeNet':
-                mask = batch['mask'].to(device).unsqueeze_(1)
+                mask = batch['routing_mask'].to(device).unsqueeze_(1)
                 gradient_mask = batch['gradient_mask'].to(device).unsqueeze_(1)
 
                 est = torch.where(mask == 0., torch.zeros_like(est), est)
