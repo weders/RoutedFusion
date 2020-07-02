@@ -69,13 +69,10 @@ def test_fusion(args, model_config, test_config):
         # put all data on GPU
         batch = transform.to_device(batch, device)
 
-        # put original mask
-        batch['mask'] = batch['original_mask']
-
         # fusion pipeline
         pipeline.fuse(batch, database, device)
 
-    database.filter(value=2.)
+    database.filter(value=3.)
     test_eval = database.evaluate()
     print(test_eval)
 

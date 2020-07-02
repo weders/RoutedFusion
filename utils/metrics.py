@@ -16,7 +16,7 @@ import torch
 #             'iou': iou,
 #             'acc': acc}
 
-def evaluation(est, gt, mask=None, value=0.03):
+def evaluation(est, gt, mask=None, value=0.1):
 
     est = torch.Tensor(est)
     gt = torch.Tensor(gt)

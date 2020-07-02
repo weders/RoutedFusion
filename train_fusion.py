@@ -103,9 +103,6 @@ def train_fusion(args):
             # put all data on GPU
             batch = transform.to_device(batch, device)
 
-            # put original mask
-            batch['mask'] = batch['original_mask']
-
             # fusion pipeline
             output = pipeline.fuse_training(batch, train_database, device)
 
@@ -129,7 +126,7 @@ def train_fusion(args):
         # zero out all grads
         optimizer.zero_grad()
 
-        train_database.filter(value=2.)
+        train_database.filter(value=3.)
         train_eval = train_database.evaluate()
         train_database.save_to_workspace(workspace)
         print(train_eval)
@@ -142,13 +139,10 @@ def train_fusion(args):
             # put all data on GPU
             batch = transform.to_device(batch, device)
 
-            # put original mask
-            batch['mask'] = batch['original_mask']
-
             # fusion pipeline
             pipeline.fuse(batch, val_database, device)
 
-        val_database.filter(value=2.)
+        val_database.filter(value=3.)
         val_eval = val_database.evaluate()
         print(val_eval)
 
