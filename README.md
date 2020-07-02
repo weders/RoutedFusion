@@ -1,6 +1,6 @@
 # RoutedFusion: Learning Real-time Depth Map Fusion
 
-This is the official and improved implementation of the CVPR 2020 submission "RoutedFusion: Real-time Depth Map Fusion". 
+This is the official and improved implementation of the CVPR 2020 submission [**RoutedFusion: Learning Real-time Depth Map Fusion**](https://www.silvanweder.com/publications/routed-fusion/). 
 
 RoutedFusion is a real-time capable depth map fusion method that leverages machine learning for fusing noisy and outlier-contaminated depth maps. It consists of two neural networks components: 1) the depth routing network that performs a 2D prepocessing of the depth maps estimating a de-noised depth map as well as corresponding confidence map. 2) a depth fusion network that predicts optimal updates to the scene representation given a canonical view of the current state of the scene representation as well as the new measurement and confidence map.
 
@@ -79,9 +79,19 @@ Once you are in the docker container you can train RoutedFusion. First, you can 
 <pre><code>python train_fusion.py --config configs/fusion/shapenet.noise.005.yaml --routing-model $PATH_TO_YOUR_ROUTING_MODEL
 </code></pre>
 
+**Change Data Configuration**
+For training RoutedFusion with ShapeNet using a different artificial noise model, you can simply change the input key in the config file and add the corresponding noise model to the dataset class. 
+
 ### Testing
 You can test RoutedFusion using either the pretrained models or your own model. Furthermore, you need to define a test config specifying the test data. 
 
+***test our full pretrained model***
+<pre><code>python test_fusion.py --experiment pretrained_models/fusion/shapenet_noise_005 --test configs/tests/shapenet.routed.noise.005.yaml
+</code></pre>
+
+***test your own model***
 <pre><code>python test_fusion.py --experiment $PATH_TO_YOUR_EXPERIMENT --test configs/tests/shapenet.routed.noise.005.yaml
 </code></pre>
 
+### Train and test RoutedFusion on your own data
+In order to train and/or test RoutedFusion on your own data, you need to add a new dataset class with the same interface as shown in the ShapeNet dataset class. You need to make sure that all keys are available. Moreover, you need to write your test configuration file and you are ready to go.
