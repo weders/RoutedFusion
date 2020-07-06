@@ -14,6 +14,7 @@ from copy import copy
 
 from utils.saving import *
 
+
 def get_data_config(config, mode):
 
     data_config = copy(config.DATA)
@@ -124,7 +125,7 @@ class Workspace(object):
         tsdf_file = os.path.join(self.output_path, file)
         save_tsdf(tsdf_file, data)
 
-    def save_weigths_data(self, file, data):
+    def save_weights_data(self, file, data):
         weight_files = os.path.join(self.output_path, file)
         save_weights(weight_files, data)
 

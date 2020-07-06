@@ -156,7 +156,6 @@ def train_fusion(args):
             is_best = False
 
         # save models
-        train_database.save_to_workspace(workspace)
         val_database.save_to_workspace(workspace)
 
         # save checkpoint

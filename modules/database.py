@@ -21,7 +21,6 @@ class Database(Dataset):
         self.scenes_gt = {}
         self.scenes_est = {}
         self.fusion_weights = {}
-        self.counts = {}
 
         for s in dataset.scenes:
 
@@ -34,7 +33,6 @@ class Database(Dataset):
             self.scenes_est[s] = Voxelgrid(self.scenes_gt[s].resolution)
             self.scenes_est[s].from_array(init_volume, self.scenes_gt[s].bbox)
             self.fusion_weights[s] = np.zeros(self.scenes_gt[s].volume.shape)
-            self.counts[s] = np.zeros(self.scenes_gt[s].volume.shape)
 
         self.reset()
 
@@ -46,7 +44,6 @@ class Database(Dataset):
         sample['current'] = self.scenes_est[item].volume
         sample['origin'] = self.scenes_gt[item].origin
         sample['resolution'] = self.scenes_gt[item].resolution
-        sample['counts'] = self.counts[item]
         sample['weights'] = self.fusion_weights[item]
 
         if self.transform is not None:
@@ -153,10 +150,3 @@ class Database(Dataset):
         for scene_id in self.scenes_est.keys():
             self.scenes_est[scene_id].volume = self.initial_value * np.ones(self.scenes_est[scene_id].volume.shape)
             self.fusion_weights[scene_id] = np.zeros(self.scenes_est[scene_id].volume.shape)
-
-    # def to_tsdf(self, mode='normal', truncation=1.2):
-    #     for scene_id in self.scenes_gt.keys():
-    #         self.scenes_gt[scene_id].transform(mode='normal')
-    #         self.scenes_gt[scene_id].volume *= self.scenes_gt[scene_id].resolution
-    #         if mode == 'truncate':
-    #             self.scenes_gt[scene_id].volume[np.abs(self.scenes_gt[scene_id].volume) > truncation] = self.initial_value
