@@ -1,61 +1,21 @@
 import numpy as np
 import torch
 
-# def evaluation(est, target, mask=None):
-#
-#     est = np.clip(est, -0.04, 0.04)
-#     target = np.clip(target, -0.04, 0.04)
-#
-#     mse = mse_fn(est, target, mask)
-#     mad = mad_fn(est, target, mask)
-#     iou = iou_fn(est, target, mask)
-#     acc = acc_fn(est, target, mask)
-#
-#     return {'mse': mse,
-#             'mad': mad,
-#             'iou': iou,
-#             'acc': acc}
 
-def evaluation(est, gt, mask=None, value=0.1):
+def evaluation(est, target, mask=None, value=0.1):
 
-    est = torch.Tensor(est)
-    gt = torch.Tensor(gt)
-    mask = torch.Tensor(mask)
+    est = np.clip(est, -value, value)
+    target = np.clip(target, -value, value)
 
-    est[mask == 0.] = 0.
-    gt[mask == 0.] = 0.
+    mse = mse_fn(est, target, mask)
+    mad = mad_fn(est, target, mask)
+    iou = iou_fn(est, target, mask)
+    acc = acc_fn(est, target, mask)
 
-    est = torch.clamp(est, -value, value)
-    gt = torch.clamp(gt, -value, value)
-
-    mask[mask != 0] = 1.
-
-    l2_loss = l2(est, gt, mask)
-    l1_loss = l1(est, gt, mask)
-
-    free_acc = accuracy(est, gt)
-    occu_acc = accuracy(est, gt, mode='occupied')
-    iou = intersection_over_union(est, gt)
-
-    mad = mean_absolute_distance(est, gt, mask=mask)
-
-    print('L2 LOSS \t', l2_loss)
-    print('L1 LOSS \t', l1_loss)
-    print('Freespace Accuracy \t', free_acc)
-    print('Occupied Accuracy \t', occu_acc)
-    print('IoU \t', iou)
-    print('MAD\t', mad)
-
-
-    results = {'l1': l1_loss,
-               'l2': l2_loss,
-               'free_acc': free_acc,
-               'occu_acc': occu_acc,
-               'iou': iou,
-               'mad': mad}
-
-    return results
-
+    return {'mse': mse,
+            'mad': mad,
+            'iou': iou,
+            'acc': acc}
 
 
 def rmse_fn(est, target, mask=None):
