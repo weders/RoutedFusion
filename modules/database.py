@@ -34,8 +34,6 @@ class Database(Dataset):
             self.scenes_est[s].from_array(init_volume, self.scenes_gt[s].bbox)
             self.fusion_weights[s] = np.zeros(self.scenes_gt[s].volume.shape)
 
-        self.reset()
-
     def __getitem__(self, item):
 
         sample = dict()

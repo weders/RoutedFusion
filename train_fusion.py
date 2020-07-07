@@ -127,7 +127,7 @@ def train_fusion(args):
         optimizer.zero_grad()
 
         train_database.filter(value=3.)
-        train_eval = train_database.evaluate()
+        train_eval = train_database.evaluate(mode='train', workspace=workspace)
         train_database.save_to_workspace(workspace)
         print(train_eval)
 
@@ -143,7 +143,7 @@ def train_fusion(args):
             pipeline.fuse(batch, val_database, device)
 
         val_database.filter(value=3.)
-        val_eval = val_database.evaluate()
+        val_eval = val_database.evaluate(mode='val', workspace=workspace)
         print(val_eval)
 
         # check if current checkpoint is best
