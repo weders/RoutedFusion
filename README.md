@@ -14,6 +14,8 @@ If you find our code or paper useful, please consider citing
       year = {2020}
     }
 
+Prior to using the source code in a commercial application, please contact the authors.
+
 ## Usage
 
 Below you find instructions on how to use RoutedFusion as a standalone depth map fusion pipeline for training and evaluation.
