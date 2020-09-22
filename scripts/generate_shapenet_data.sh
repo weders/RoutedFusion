@@ -46,7 +46,7 @@ for s in "${scenes[@]}"; do
   obj="$(cut -d'/' -f2 <<< $s)"
 
   # create destination path
-  mkdir $DEST_PATH/$cat/$obj
+  mkdir -p $DEST_PATH/$cat/$obj
 
   # copy object and corresponding material
   cp $SOURCE_PATH/$cat/$obj/model.obj $DEST_PATH/$cat/$obj/model.obj

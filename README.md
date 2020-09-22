@@ -32,6 +32,7 @@ The models are trained on the ShapeNet v1 dataset. Therefore, the data needs to 
 **Prerequisites**
 1. Download ShapeNet v1 from www.shapenet.org and unzip files
 2. Download binvox from https://www.patrickmin.com/binvox/, adjust permissions and move it to /usr/bin/
+3. Our Docker or conda environment
 
 **Install Data Generation**
 
@@ -50,6 +51,8 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 **Clone the repo**
 
 <pre><code>git clone https://github.com/weders/RoutedFusion.git
+git submodule update --init --recursive
+
 </code></pre>
 
 **Build the docker image**
@@ -61,7 +64,9 @@ There are two possible ways of installing RoutedFusion. The recommended way is t
 </code></pre>
 
 **Alternatively, create the Anaconda environment**
-<pre><code>conda create env -f environment.yml
+<pre><code>conda env create -f environment.yml
+conda activate routed-fusion
+bash scripts/install_docker.sh
 </code></pre>
 
 ### Training
